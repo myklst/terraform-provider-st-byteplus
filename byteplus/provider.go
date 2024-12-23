@@ -1,17 +1,16 @@
-package provider
+package byteplus
 
 import (
 	"context"
 	"os"
 
+	"github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-
-	"github.com/byteplus-sdk/byteplus-sdk-golang/base"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -45,29 +44,20 @@ func (p *byteplusProvider) Metadata(_ context.Context, _ provider.MetadataReques
 // Schema defines the provider-level schema for configuration data.
 func (p *byteplusProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "The Byteplus provider is used to interact with the many resources supported by Byteplus. " +
-			"The provider needs to be configured with the proper credentials before it can be used.",
 		Attributes: map[string]schema.Attribute{
-			"region": schema.StringAttribute{
-				Description: "Region for Byteplus API.",
-				Optional:    true,
-			},
 			"access_key": schema.StringAttribute{
-				Description: "Access Key for Byteplus API.",
-				Optional:    true,
+				Optional: true,
 			},
 			"secret_key": schema.StringAttribute{
-				Description: "Secret key for Byteplus API.",
-				Optional:    true,
-				Sensitive:   true,
+				Optional:  true,
+				Sensitive: true,
 			},
 		},
 	}
 }
 
-// ByteplusProviderModel maps provider schema data to a Go type.
+// hashicupsProviderModel maps provider schema data to a Go type.
 type byteplusProviderModel struct {
-	Region    types.String `tfsdk:"region"`
 	AccessKey types.String `tfsdk:"access_key"`
 	SecretKey types.String `tfsdk:"secret_key"`
 }
@@ -84,92 +74,62 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	// If practitioner provided a configuration value for any of the
 	// attributes, it must be a known value.
 
-	if config.Region.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("region"),
-			"Unknown Byteplus region",
-			"The provider cannot create the Byteplus API client as there is an unknown configuration value for the"+
-				"Byteplus API region. Set the value statically in the configuration, or use the Byteplus_REGION environment variable.",
-		)
-	}
-
 	if config.AccessKey.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("access_key"),
-			"Unknown Byteplus access key",
-			"The provider cannot create the Byteplus API client as there is an unknown configuration value for the"+
-				"Byteplus API access key. Set the value statically in the configuration, or use the Byteplus_ACCESS_KEY environment variable.",
+			"Unknown HashiCups API Access Key",
+			"The provider cannot create the HashiCups API client as there is an unknown configuration value for the HashiCups API host. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the HASHICUPS_HOST environment variable.",
 		)
 	}
 
 	if config.SecretKey.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("secret_key"),
-			"Unknown Byteplus secret key",
-			"The provider cannot create the Byteplus API client as there is an unknown configuration value for the"+
-				"Byteplus secret key. Set the value statically in the configuration, or use the Byteplus_SECRET_KEY environment variable.",
+			"Unknown HashiCups API Secret Key",
+			"The provider cannot create the HashiCups API client as there is an unknown configuration value for the HashiCups API username. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the HASHICUPS_USERNAME environment variable.",
 		)
 	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// Default values to environment variables, but override
 	// with Terraform configuration value if set.
-	var region, accessKey, secretKey string
-	if !config.Region.IsNull() {
-		region = config.Region.ValueString()
-	} else {
-		region = os.Getenv("Byteplus_REGION")
-	}
+
+	access_key := os.Getenv("HASHICUPS_ACCESS_KEY")
+	secret_key := os.Getenv("HASHICUPS_SECRET_KEY")
 
 	if !config.AccessKey.IsNull() {
-		accessKey = config.AccessKey.ValueString()
-	} else {
-		accessKey = os.Getenv("Byteplus_ACCESS_KEY")
+		access_key = config.AccessKey.ValueString()
 	}
 
 	if !config.SecretKey.IsNull() {
-		secretKey = config.SecretKey.ValueString()
-	} else {
-		secretKey = os.Getenv("Byteplus_SECRET_KEY")
+		secret_key = config.SecretKey.ValueString()
 	}
 
-	// If any of the expected configuration are missing, return
+	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
-	if region == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("region"),
-			"Missing Byteplus API region",
-			"The provider cannot create the Byteplus API client as there is a "+
-				"missing or empty value for the Byteplus API region. Set the "+
-				"region value in the configuration or use the Byteplus_REGION "+
-				"environment variable. If either is already set, ensure the value "+
-				"is not empty.",
-		)
-	}
 
-	if accessKey == "" {
+	if access_key == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("access_key"),
-			"Missing Byteplus API access key",
-			"The provider cannot create the Byteplus API client as there is a "+
-				"missing or empty value for the Byteplus API access key. Set the "+
-				"access key value in the configuration or use the Byteplus_ACCESS_KEY "+
-				"environment variable. If either is already set, ensure the value "+
-				"is not empty.",
+			"Missing HashiCups API Access Key",
+			"The provider cannot create the HashiCups API client as there is a missing or empty value for the HashiCups API host. "+
+				"Set the host value in the configuration or use the HASHICUPS_HOST environment variable. "+
+				"If either is already set, ensure the value is not empty.",
 		)
 	}
 
-	if secretKey == "" {
+	if secret_key == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("secret_key"),
-			"Missing Byteplus secret key",
-			"The provider cannot create the Byteplus API client as there is a "+
-				"missing or empty value for the Byteplus API Secret Key. Set the "+
-				"secret key value in the configuration or use the Byteplus_SECRET_KEY "+
-				"environment variable. If either is already set, ensure the value "+
-				"is not empty.",
+			"Missing HashiCups API Secret Key",
+			"The provider cannot create the HashiCups API client as there is a missing or empty value for the HashiCups API username. "+
+				"Set the username value in the configuration or use the HASHICUPS_USERNAME environment variable. "+
+				"If either is already set, ensure the value is not empty.",
 		)
 	}
 
@@ -177,25 +137,19 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Create a new Byteplus client using the configuration values
-	client := base.NewClient(&base.ServiceInfo{
-		Credentials: base.Credentials{
-			AccessKeyID:     accessKey,
-			SecretAccessKey: secretKey,
-		},
-	}, nil)
-
-	// Validate that the client was created successfully (depending on its implementation)
-	if client == nil {
+	// Create a new HashiCups client using the configuration values
+	client, err := base.NewClient()
+	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Create Byteplus API Client",
-			"An unexpected error occurred when creating the Byteplus API client. "+
-				"If the error is not clear, please contact the provider developers.",
+			"Unable to Create HashiCups API Client",
+			"An unexpected error occurred when creating the HashiCups API client. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"HashiCups Client Error: "+err.Error(),
 		)
 		return
 	}
 
-	// Make the Byteplus client available during DataSource and Resource
+	// Make the HashiCups client available during DataSource and Resource
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
