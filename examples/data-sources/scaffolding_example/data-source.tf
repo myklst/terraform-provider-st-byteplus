@@ -1,3 +1,3 @@
-data "scaffolding_example" "example" {
-  configurable_attribute = "some-value"
+data "st-byteplus_cdn_domain" "example" {
+
 }

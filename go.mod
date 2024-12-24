@@ -3,11 +3,12 @@ module github.com/myklst/terraform-provider-st-byteplus
 go 1.22.7
 
 require (
-	github.com/byteplus-sdk/byteplus-sdk-golang v1.0.37
+	github.com/hashicorp-demoapp/hashicups-client-go v0.1.0
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 )
 
 require (
+	github.com/byteplus-sdk/byteplus-sdk-golang v1.0.37 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect

@@ -7,9 +7,8 @@ terraform {
 }
 
 provider "st-byteplus" {
-
+  access_key = "AKAPMWMzODdjNGVhZjhmNDYyN2FhYWIyM2RjNDdjMDBiODE"
+  secret_key = ""
 }
 
-data "st-byteplus_cdn_domain" "example" {
-
-}
+data "st-byteplus_cdn_domains" "example" {}

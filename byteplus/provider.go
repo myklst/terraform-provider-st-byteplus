@@ -138,16 +138,12 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	// Create a new HashiCups client using the configuration values
-	client, err := base.NewClient()
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Create HashiCups API Client",
-			"An unexpected error occurred when creating the HashiCups API client. "+
-				"If the error is not clear, please contact the provider developers.\n\n"+
-				"HashiCups Client Error: "+err.Error(),
-		)
-		return
-	}
+	client := base.NewClient(&base.ServiceInfo{
+		Credentials: base.Credentials{
+			AccessKeyID:     access_key,
+			SecretAccessKey: secret_key,
+		},
+	}, nil)
 
 	// Make the HashiCups client available during DataSource and Resource
 	// type Configure methods.
