@@ -41,7 +41,7 @@ func (p *byteplusProvider) Metadata(_ context.Context, _ provider.MetadataReques
 // Schema defines the provider-level schema for configuration data.
 func (p *byteplusProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "The Alibaba Cloud provider is used to interact with the many resources supported by Alibaba Cloud. " +
+		Description: "The Byteplus provider is used to interact with the many resources supported by Byteplus. " +
 			"The provider needs to be configured with the proper credentials before it can be used.",
 		Attributes: map[string]schema.Attribute{
 			"region": schema.StringAttribute{
@@ -129,9 +129,9 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	if region == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("region"),
-			"Missing AliCloud API region",
-			"The provider cannot create the AliCloud API client as there is a "+
-				"missing or empty value for the AliCloud API region. Set the "+
+			"Missing Byteplus API region",
+			"The provider cannot create the Byteplus API client as there is a "+
+				"missing or empty value for the Byteplus API region. Set the "+
 				"region value in the configuration or use the ALICLOUD_REGION "+
 				"environment variable. If either is already set, ensure the value "+
 				"is not empty.",
@@ -181,7 +181,6 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	resp.ResourceData = client
 }
 
-// DataSources defines the data sources implemented in the provider.
 func (p *byteplusProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewCdnDomainDataSource,
