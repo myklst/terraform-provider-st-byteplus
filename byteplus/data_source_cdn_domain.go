@@ -51,6 +51,15 @@ func (d *cdnDomainDataSource) Schema(_ context.Context, req datasource.SchemaReq
 				Description: "Domain name of CDN domain.",
 				Required:    true,
 			},
+			"domain_cname": schema.StringAttribute{
+				Description: "Domain CName of CDN domain.",
+				Computed:    true,
+			},
+			"status": schema.ListAttribute{
+				Description: "Status of CDN domain.",
+				ElementType: types.StringType,
+				Computed:    true,
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"client_config": schema.SingleNestedBlock{
@@ -102,8 +111,10 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
+	cdnDomains := response.Result.Data
+
 	// Iterate over the domains in the response
-	for _, domain := range response.Result.Data {
+	for _, domain := range cdnDomains {
 		cdnDomainState := cdnDomainsModel{
 			Cname:  types.StringValue(domain.Cname),
 			Domain: types.StringValue(domain.Domain),
@@ -112,7 +123,6 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		state.Data = append(state.Data, cdnDomainState)
 	}
 
-	// Set state
 	diags := resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
