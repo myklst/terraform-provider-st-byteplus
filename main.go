@@ -19,7 +19,7 @@ func main() {
 	if providerAddress == "" {
 		providerAddress = "registry.terraform.io/myklst/st-byteplus"
 	}
-	providerserver.Serve(context.Background(), byteplus.New(""), providerserver.ServeOpts{
+	providerserver.Serve(context.Background(), byteplus.New, providerserver.ServeOpts{
 		Address: providerAddress,
 	})
 }
