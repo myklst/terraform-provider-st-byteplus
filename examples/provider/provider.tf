@@ -15,6 +15,6 @@ data "st-byteplus_cdn_domain" "example" {
 
   client_config {
     access_key = "abc"
-    secret_key = "abc=="
+    secret_key = ""
   }
 }
