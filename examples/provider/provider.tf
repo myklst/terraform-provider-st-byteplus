@@ -7,8 +7,14 @@ terraform {
 }
 
 provider "st-byteplus" {
-  access_key = "AKAPMWMzODdjNGVhZjhmNDYyN2FhYWIyM2RjNDdjMDBiODE"
-  secret_key = ""
+  region = "ap-singapore-1"
 }
 
-data "st-byteplus_cdn_domain" "example" {}
+data "st-byteplus_cdn_domain" "example" {
+  domain_name = "test.example.com"
+
+  client_config {
+    access_key = "abc"
+    secret_key = "abc=="
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -171,10 +172,16 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
+	clientCredentialsConfig := base.Credentials{
+		AccessKeyID:     accessKey,
+		SecretAccessKey: secretKey,
+		Region:          region,
+	}
+
 	// Initialize the Default CDN Client and set the credentials
+	cdnClientConfig := clientCredentialsConfig
 	cdnClient := byteplusCdnClient.NewInstance()
-	cdnClient.Client.SetAccessKey(accessKey)
-	cdnClient.Client.SetSecretKey(secretKey)
+	cdnClient.Client.SetCredential(cdnClientConfig)
 
 	// AliCloud clients wrapper
 	byteplusClients := byteplusClients{
