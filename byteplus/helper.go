@@ -1,11 +1,24 @@
 package byteplus
 
 import (
-	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
+	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
-func initNewClient(providerConfig *byteplusCdnClient.CDN, planConfig *clientConfig) (initClient bool, diag diag.Diagnostics) {
+func initNewClient(providerConfig *byteplusBaseClient.Client, planConfig *clientConfig) (initClient bool, clientConfig *byteplusBaseClient.Credentials, diag diag.Diagnostics) {
 	initClient = false
+	clientConfig = &byteplusBaseClient.Credentials{}
+	region := planConfig.Region.ValueString()
+	accessKey := planConfig.AccessKey.ValueString()
+	secretKey := planConfig.SecretKey.ValueString()
+
+	if region != "" || accessKey != "" || secretKey != "" {
+		initClient = true
+	}
+
+	if initClient {
+
+	}
+
 	return
 }

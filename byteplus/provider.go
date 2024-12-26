@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/byteplus-sdk/byteplus-sdk-golang/base"
+	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -172,7 +172,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	clientCredentialsConfig := base.Credentials{
+	clientCredentialsConfig := byteplusBaseClient.Credentials{
 		AccessKeyID:     accessKey,
 		SecretAccessKey: secretKey,
 		Region:          region,
