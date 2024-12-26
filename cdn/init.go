@@ -6,7 +6,7 @@ import (
 
 var (
 	DefaultInstance = cdn.DefaultInstance
-	ak              = "AKAPZjJjZWQwNzdkNTg1NGQwNzgyYTdhNzM4MjRiM2RmMzc"
+	ak              = ""
 	sk              = ""
 )
 
