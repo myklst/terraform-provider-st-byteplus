@@ -10,4 +10,4 @@ provider "st-byteplus" {
 
 }
 
-# data "st-byteplus_cdn_domains" "example" {}
+data "st-byteplus_cdn_domain" "example" {}

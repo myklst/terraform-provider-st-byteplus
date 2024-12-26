@@ -13,6 +13,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Wrapper of AliCloud client
+type byteplusClients struct {
+	baseClient *byteplus.Client
+}
+
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ provider.Provider = &byteplusProvider{}
@@ -167,7 +172,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	// Byteplus Base Client
-	client := byteplus.NewClient(&byteplus.ServiceInfo{
+	baseClient := byteplus.NewClient(&byteplus.ServiceInfo{
 		Credentials: byteplus.Credentials{
 			Region:          region,
 			AccessKeyID:     accessKey,
@@ -175,10 +180,15 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		},
 	}, nil)
 
+	// AliCloud clients wrapper
+	byteplusClients := byteplusClients{
+		baseClient: baseClient,
+	}
+
 	// Make the Byteplus client available during DataSource and Resource
 	// type Configure methods.
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	resp.DataSourceData = byteplusClients
+	resp.ResourceData = byteplusClients
 }
 
 func (p *byteplusProvider) DataSources(_ context.Context) []func() datasource.DataSource {
