@@ -3,7 +3,7 @@ package byteplus
 import (
 	"context"
 
-	byteplus "github.com/byteplus-sdk/byteplus-sdk-golang/base"
+	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -22,12 +22,20 @@ func NewCdnDomainDataSource() datasource.DataSource {
 
 // coffeesDataSource is the data source implementation.
 type cdnDomainDataSource struct {
-	client *byteplus.Client
+	client *byteplusCdnClient.CDN
 }
 
 type cdnDomainDataSourceModel struct {
-	ClientConfig *clientConfig `tfsdk:"client_config"`
-	DomainName   types.String  `tfsdk:"domain_name"`
+	ClientConfig *clientConfig     `tfsdk:"client_config"`
+	DomainName   types.String      `tfsdk:"domain_name"`
+	Data         []cdnDomainsModel `tfsdk:"data"`
+}
+
+// coffeesModel maps coffees schema data.
+type cdnDomainsModel struct {
+	Cname  types.String `tfsdk:"cname"`
+	Domain types.String `tfsdk:"domain"`
+	Status types.String `tfsdk:"status"`
 }
 
 // Metadata returns the data source type name.
@@ -72,13 +80,42 @@ func (d *cdnDomainDataSource) Schema(_ context.Context, req datasource.SchemaReq
 	}
 }
 
+// Configure adds the provider configured client to the data source.
 func (d *cdnDomainDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
 
-	d.client = req.ProviderData.(byteplusClients).baseClient
+	d.client = req.ProviderData.(byteplusClients).cdnClient
 }
 
 func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state cdnDomainDataSourceModel
+
+	// Call the API
+	response, err := d.client.ListCdnDomains(&byteplusCdnClient.ListCdnDomainsRequest{})
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Read Byteplus CDN Domains",
+			err.Error(),
+		)
+		return
+	}
+
+	// Iterate over the domains in the response
+	for _, domain := range response.Result.Data {
+		cdnDomainState := cdnDomainsModel{
+			Cname:  types.StringValue(domain.Cname),
+			Domain: types.StringValue(domain.Domain),
+			Status: types.StringValue(domain.Status),
+		}
+		state.Data = append(state.Data, cdnDomainState)
+	}
+
+	// Set state
+	diags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
