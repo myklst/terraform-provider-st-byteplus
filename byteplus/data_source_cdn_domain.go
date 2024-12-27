@@ -3,9 +3,12 @@ package byteplus
 import (
 	"context"
 
+	"github.com/alibabacloud-go/tea/tea"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -26,16 +29,10 @@ type cdnDomainDataSource struct {
 }
 
 type cdnDomainDataSourceModel struct {
-	ClientConfig *clientConfig     `tfsdk:"client_config"`
-	DomainName   types.String      `tfsdk:"domain_name"`
-	Data         []cdnDomainsModel `tfsdk:"data"`
-}
-
-// coffeesModel maps coffees schema data.
-type cdnDomainsModel struct {
-	Cname  types.String `tfsdk:"cname"`
-	Domain types.String `tfsdk:"domain"`
-	Status types.String `tfsdk:"status"`
+	ClientConfig *clientConfig `tfsdk:"client_config"`
+	Domain       types.String  `tfsdk:"domain_name"`
+	Cname        types.String  `tfsdk:"cname"`
+	Status       types.String  `tfsdk:"status"`
 }
 
 // Metadata returns the data source type name.
@@ -51,16 +48,16 @@ func (d *cdnDomainDataSource) Schema(_ context.Context, req datasource.SchemaReq
 				Description: "Domain name of CDN domain.",
 				Required:    true,
 			},
-			"domain_cname": schema.StringAttribute{
+			"cname": schema.StringAttribute{
 				Description: "Domain CName of CDN domain.",
 				Computed:    true,
 			},
-			"status": schema.ListAttribute{
+			"status": schema.StringAttribute{
 				Description: "Status of CDN domain.",
-				ElementType: types.StringType,
-				Computed:    true,
+				Computed: true,
 			},
 		},
+
 		Blocks: map[string]schema.Block{
 			"client_config": schema.SingleNestedBlock{
 				Description: "Config to override default client created in Provider. " +
@@ -99,10 +96,45 @@ func (d *cdnDomainDataSource) Configure(_ context.Context, req datasource.Config
 }
 
 func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state cdnDomainDataSourceModel
+	var plan, state cdnDomainDataSourceModel
+	diags := req.Config.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if plan.ClientConfig == nil {
+		plan.ClientConfig = &clientConfig{}
+	}
+
+	initClient, clientCredentialsConfig, initClientDiags := initNewClient(&d.client.Client.ServiceInfo.Credentials, plan.ClientConfig)
+	if initClientDiags.HasError() {
+		resp.Diagnostics.Append(initClientDiags...)
+		return
+	}
+
+	if initClient {
+		cdnClient := byteplusCdnClient.NewInstance()
+		cdnClient.Client.SetCredential(*clientCredentialsConfig)
+	}
+
+	domainName := plan.Domain.ValueString()
+
+	if domainName == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("domain_name"),
+			"Missing CDN Domain Name",
+			"Domain name must not be empty",
+		)
+		return
+	}
+
+	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
+		Domain: tea.String(domainName),
+	}
 
 	// Call the API
-	response, err := d.client.ListCdnDomains(&byteplusCdnClient.ListCdnDomainsRequest{})
+	response, err := d.client.ListCdnDomains(ListCdnDomainsRequest)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Byteplus CDN Domains",
@@ -113,17 +145,14 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 
 	cdnDomains := response.Result.Data
 
-	// Iterate over the domains in the response
-	for _, domain := range cdnDomains {
-		cdnDomainState := cdnDomainsModel{
-			Cname:  types.StringValue(domain.Cname),
-			Domain: types.StringValue(domain.Domain),
-			Status: types.StringValue(domain.Status),
-		}
-		state.Data = append(state.Data, cdnDomainState)
+	for _, cdnDomain := range cdnDomains {
+		state.Domain = types.StringValue(cdnDomain.Domain)
+		state.Cname = types.StringValue(cdnDomain.Cname)
+		state.Status = types.StringValue(cdnDomain.Status)
 	}
 
-	diags := resp.State.Set(ctx, &state)
+	// Set state
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

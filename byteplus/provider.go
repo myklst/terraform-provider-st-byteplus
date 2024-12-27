@@ -51,7 +51,7 @@ func (p *byteplusProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 			"The provider needs to be configured with the proper credentials before it can be used.",
 		Attributes: map[string]schema.Attribute{
 			"region": schema.StringAttribute{
-				Description: "Region for Byteplus API. May also be provided via ALICLOUD_REGION environment variable.",
+				Description: "Region for Byteplus API. May also be provided via BYTEPLUS_REGION environment variable.",
 				Optional:    true,
 			},
 			"access_key": schema.StringAttribute{
@@ -82,7 +82,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 			path.Root("region"),
 			"Unknown Byteplus region",
 			"The provider cannot create the Byteplus API client as there is an unknown configuration value for the"+
-				"Byteplus API region. Set the value statically in the configuration, or use the ALICLOUD_REGION environment variable.",
+				"Byteplus API region. Set the value statically in the configuration, or use the BYTEPLUS_REGION environment variable.",
 		)
 	}
 
@@ -138,7 +138,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 			"Missing Byteplus API region",
 			"The provider cannot create the Byteplus API client as there is a "+
 				"missing or empty value for the Byteplus API region. Set the "+
-				"region value in the configuration or use the ALICLOUD_REGION "+
+				"region value in the configuration or use the BYTEPLUS_REGION "+
 				"environment variable. If either is already set, ensure the value "+
 				"is not empty.",
 		)

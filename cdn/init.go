@@ -8,6 +8,7 @@ var (
 	DefaultInstance = cdn.DefaultInstance
 	ak              = ""
 	sk              = ""
+	domainName      = "www.example.com"
 )
 
 func init() {

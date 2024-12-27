@@ -10,7 +10,9 @@ import (
 )
 
 func ListCdnDomains(t *testing.T) {
-	resp, err := DefaultInstance.ListCdnDomains(&cdn.ListCdnDomainsRequest{})
+	resp, err := DefaultInstance.ListCdnDomains(&cdn.ListCdnDomainsRequest{
+		Domain: &domainName,
+	})
 	test, _ := json.Marshal(resp)
 	fmt.Println(string(test))
 	assert.NoError(t, err)
