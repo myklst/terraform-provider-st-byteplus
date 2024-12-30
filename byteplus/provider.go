@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Wrapper of AliCloud client
+// Wrapper of Byteplus client
 type byteplusClients struct {
 	cdnClient *byteplusCdnClient.CDN
 }
@@ -183,7 +183,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	cdnClient := byteplusCdnClient.NewInstance()
 	cdnClient.Client.SetCredential(cdnClientConfig)
 
-	// AliCloud clients wrapper
+	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{
 		cdnClient: cdnClient,
 	}

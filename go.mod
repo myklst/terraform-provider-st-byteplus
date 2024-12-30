@@ -8,8 +8,6 @@ require (
 )
 
 require (
-	github.com/alibabacloud-go/debug v1.0.0 // indirect
-	github.com/alibabacloud-go/tea v1.2.2 // indirect
 	github.com/byteplus-sdk/byteplus-sdk-golang v1.0.37 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

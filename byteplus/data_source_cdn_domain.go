@@ -3,7 +3,6 @@ package byteplus
 import (
 	"context"
 
-	"github.com/alibabacloud-go/tea/tea"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -130,7 +129,7 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
-		Domain: tea.String(domainName),
+		Domain: &domainName,
 	}
 
 	// Call the API
