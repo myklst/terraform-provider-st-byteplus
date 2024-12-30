@@ -54,7 +54,7 @@ func (d *cdnDomainDataSource) Schema(_ context.Context, req datasource.SchemaReq
 			},
 			"status": schema.StringAttribute{
 				Description: "Status of CDN domain.",
-				Computed: true,
+				Computed:    true,
 			},
 		},
 
@@ -107,15 +107,15 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		plan.ClientConfig = &clientConfig{}
 	}
 
-	initClient, clientCredentialsConfig, initClientDiags := initNewClient(&d.client.Client.ServiceInfo.Credentials, plan.ClientConfig)
+	initClient, clientCredentialsConfig, initClientDiags := initNewClient(d.client.Client, plan.ClientConfig)
 	if initClientDiags.HasError() {
 		resp.Diagnostics.Append(initClientDiags...)
 		return
 	}
 
 	if initClient {
-		cdnClient := byteplusCdnClient.NewInstance()
-		cdnClient.Client.SetCredential(*clientCredentialsConfig)
+		d.client = byteplusCdnClient.NewInstance()
+		d.client.Client.SetCredential(*clientCredentialsConfig)
 	}
 
 	domainName := plan.Domain.ValueString()

@@ -4,6 +4,6 @@
 provider "example.local/myklst/st-byteplus" {
   version = "0.1.0"
   hashes = [
-    "h1:26XlcDmR+RbiP4xgxz0E0thmSLUhQpseKXiL+uljIrc=",
+    "h1:BDJ+G3QW4Wx8L5Pth43BVsSrKcndIIBRBtno/2Y+Mvw=",
   ]
 }
