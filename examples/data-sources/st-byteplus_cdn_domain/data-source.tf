@@ -6,7 +6,3 @@ data "st-byteplus_cdn_domain" "example" {
     secret_key = ""
   }
 }
-
-output "cdn_domain_details" {
-  value = data.st-byteplus_cdn_domain.example
-}

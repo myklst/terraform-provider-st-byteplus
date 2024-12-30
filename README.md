@@ -48,9 +48,6 @@ scenario. The reason behind every resources and data sources are stated as below
 
 - **st-byteplus_cdn_domain**
 
-  - Official Byteplus Terraform provider does not have the data source to query
-    the CNAME of CDN domain.
-
   - Added client_config block to allow overriding the Provider configuration.
 
 References
