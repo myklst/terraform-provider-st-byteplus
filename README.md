@@ -55,3 +55,4 @@ References
 
 - Website: https://www.terraform.io
 - Terraform Plugin Framework: https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework
+- Byteplus official Terraform provider: https://github.com/byteplus-sdk/terraform-provider-byteplus

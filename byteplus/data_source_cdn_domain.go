@@ -128,38 +128,51 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
-		Domain: &domainName,
-	}
-
-	var err error
-	var response *byteplusCdnClient.ListCdnDomainsResponse
+	pageNum := int64(1)
+	pageSize := int64(100)
 	var cdnDomains []byteplusCdnClient.DomainSummary
-	describeCdnDomain := func() (err error) {
-		// Call the API
-		response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
+
+	for {
+		// Create the request
+		ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
+			Domain:   &domainName,
+			PageNum:  &pageNum,
+			PageSize: &pageSize,
+		}
+
+		var response *byteplusCdnClient.ListCdnDomainsResponse
+		describeCdnDomain := func() (err error) {
+			// Call the API
+			response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Unable to Read Byteplus CDN Domains",
+					err.Error(),
+				)
+				return
+			}
+			// Append current page results
+			cdnDomains = append(cdnDomains, response.Result.Data...)
+			return
+		}
+
+		// Retry with backoff
+		reconnectBackoff := backoff.NewExponentialBackOff()
+		reconnectBackoff.MaxElapsedTime = 10 * time.Second
+		err := backoff.Retry(describeCdnDomain, reconnectBackoff)
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Unable to Read Byteplus CDN Domains",
+				"[API ERROR] Failed to Describe CDN Domain",
 				err.Error(),
 			)
 			return
 		}
-		cdnDomains = response.Result.Data
 
-		return
-	}
-
-	// Retry backoff
-	reconnectBackoff := backoff.NewExponentialBackOff()
-	reconnectBackoff.MaxElapsedTime = 30 * time.Second
-	err = backoff.Retry(describeCdnDomain, reconnectBackoff)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"[API ERROR] Failed to Describe CDN Domain",
-			err.Error(),
-		)
-		return
+		// Check if more pages exist
+		if pageNum*pageSize < response.Result.Total {
+			break
+		}
+		pageNum++
 	}
 
 	for _, cdnDomain := range cdnDomains {
