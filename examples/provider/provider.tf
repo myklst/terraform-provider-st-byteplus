@@ -12,15 +12,15 @@ provider "st-byteplus" {
   secret_key = "NOT_USED"
 }
 
-data "st-byteplus_cdn_domain" "example" {
+data "st-byteplus_cdn_domain" "def" {
   domain_name = "www.example.com"
 
   client_config {
-    access_key = ""
-    secret_key = ""
+    access_key = "AKAPZjJjZWQwNzdkNTg1NGQwNzgyYTdhNzM4MjRiM2RmMzc"
+    secret_key = "WkRVeFlXSmhZbUUzWmpSbE5ETTVNams1TlRRellqSmxPV1F4TmpGak5XWQ=="
   }
 }
 
 output "cdn_domain_details" {
-  value = data.st-byteplus_cdn_domain.example
+  value = data.st-byteplus_cdn_domain.def
 }

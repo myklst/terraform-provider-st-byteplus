@@ -2,8 +2,10 @@ package byteplus
 
 import (
 	"context"
+	"time"
 
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
+	"github.com/cenkalti/backoff/v4"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -17,12 +19,10 @@ var (
 	_ datasource.DataSourceWithConfigure = &cdnDomainDataSource{}
 )
 
-// NewCoffeesDataSource is a helper function to simplify the provider implementation.
 func NewCdnDomainDataSource() datasource.DataSource {
 	return &cdnDomainDataSource{}
 }
 
-// coffeesDataSource is the data source implementation.
 type cdnDomainDataSource struct {
 	client *byteplusCdnClient.CDN
 }
@@ -132,17 +132,35 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		Domain: &domainName,
 	}
 
-	// Call the API
-	response, err := d.client.ListCdnDomains(ListCdnDomainsRequest)
+	var err error
+	var response *byteplusCdnClient.ListCdnDomainsResponse
+	var cdnDomains []byteplusCdnClient.DomainSummary
+	describeCdnDomain := func() (err error) {
+		// Call the API
+		response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Read Byteplus CDN Domains",
+				err.Error(),
+			)
+			return
+		}
+		cdnDomains = response.Result.Data
+
+		return
+	}
+
+	// Retry backoff
+	reconnectBackoff := backoff.NewExponentialBackOff()
+	reconnectBackoff.MaxElapsedTime = 30 * time.Second
+	err = backoff.Retry(describeCdnDomain, reconnectBackoff)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Read Byteplus CDN Domains",
+			"[API ERROR] Failed to Describe CDN Domain",
 			err.Error(),
 		)
 		return
 	}
-
-	cdnDomains := response.Result.Data
 
 	for _, cdnDomain := range cdnDomains {
 		state.Domain = types.StringValue(cdnDomain.Domain)
