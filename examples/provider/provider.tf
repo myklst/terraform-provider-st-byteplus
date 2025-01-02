@@ -12,7 +12,7 @@ provider "st-byteplus" {
   secret_key = "NOT_USED"
 }
 
-data "st-byteplus_cdn_domain" "def" {
+data "st-byteplus_cdn_domain" "example" {
   domain_name = "www.example.com"
 
   client_config {
@@ -21,6 +21,6 @@ data "st-byteplus_cdn_domain" "def" {
   }
 }
 
-output "cdn_domain_details" {
-  value = data.st-byteplus_cdn_domain.def
-}
+# output "cdn_domain_details" {
+#   value = data.st-byteplus_cdn_domain.example
+# }

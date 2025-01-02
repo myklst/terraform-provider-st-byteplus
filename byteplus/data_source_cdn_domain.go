@@ -2,6 +2,7 @@ package byteplus
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
@@ -141,25 +142,30 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		}
 
 		var response *byteplusCdnClient.ListCdnDomainsResponse
+		var err error
 		describeCdnDomain := func() (err error) {
 			// Call the API
 			response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
 			if err != nil {
-				resp.Diagnostics.AddError(
-					"Unable to Read Byteplus CDN Domains",
-					err.Error(),
-				)
-				return
+				if byteErr, ok := err.(byteplusCdnClient.CDNError); ok {
+					errCode := byteErr.Code
+					if isPermanentCommonError(errCode) || isPermanentCdnError(errCode) {
+						fmt.Printf("Permanent error detected: %s\n", errCode)
+						return backoff.Permanent(fmt.Errorf("err:\n%s", byteErr))
+					}
+
+					return fmt.Errorf("err:\n%s", errCode)
+				}
+				// Append current page results
 			}
-			// Append current page results
 			cdnDomains = append(cdnDomains, response.Result.Data...)
 			return
 		}
 
 		// Retry with backoff
 		reconnectBackoff := backoff.NewExponentialBackOff()
-		reconnectBackoff.MaxElapsedTime = 10 * time.Second
-		err := backoff.Retry(describeCdnDomain, reconnectBackoff)
+		reconnectBackoff.MaxElapsedTime = 30 * time.Second
+		err = backoff.Retry(describeCdnDomain, reconnectBackoff)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"[API ERROR] Failed to Describe CDN Domain",
