@@ -150,7 +150,6 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 				if byteErr, ok := err.(byteplusCdnClient.CDNError); ok {
 					errCode := byteErr.Code
 					if isPermanentCommonError(errCode) || isPermanentCdnError(errCode) {
-						fmt.Printf("Permanent error detected: %s\n", errCode)
 						return backoff.Permanent(fmt.Errorf("err:\n%s", byteErr))
 					}
 
