@@ -36,7 +36,7 @@ data "st-byteplus_cdn_domain" "example" {
   }
 }
 
-output "cdn_domain_details" {
+output "cdn_domain_cname" {
   value = data.st-byteplus_cdn_domain.example
 }
 ```

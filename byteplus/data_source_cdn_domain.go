@@ -174,7 +174,7 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		}
 
 		// Check if more pages exist
-		if pageNum*pageSize < response.Result.Total {
+		if pageNum*pageSize > response.Result.Total {
 			break
 		}
 		pageNum++
