@@ -15,11 +15,6 @@ This data source provides the CDN Instance of the current Byteplus user.
 ```terraform
 data "st-byteplus_cdn_domain" "example" {
   domain_name = "www.example.com"
-
-  client_config {
-    access_key = ""
-    secret_key = ""
-  }
 }
 ```
 
@@ -44,6 +39,6 @@ data "st-byteplus_cdn_domain" "example" {
 
 Optional:
 
-- `access_key` (String) The access key that have permissions to list CDN domains. Default to use access key configured in the provider.
 - `region` (String) The region of the CDN domains. Default to use region configured in the provider.
+- `access_key` (String) The access key that have permissions to list CDN domains. Default to use access key configured in the provider.
 - `secret_key` (String) The secret key that have permissions to list CDN domains. Default to use secret key configured in the provider.
