@@ -133,51 +133,43 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 	pageSize := int64(100)
 	var cdnDomains []byteplusCdnClient.DomainSummary
 
-	for {
-		// Create the request
-		ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
-			Domain:   &domainName,
-			PageNum:  &pageNum,
-			PageSize: &pageSize,
-		}
+	// Create the request
+	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
+		Domain:   &domainName,
+		PageNum:  &pageNum,
+		PageSize: &pageSize,
+	}
 
-		var response *byteplusCdnClient.ListCdnDomainsResponse
-		var err error
-		describeCdnDomain := func() (err error) {
-			// Call the API
-			response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
-			if err != nil {
-				if byteErr, ok := err.(byteplusCdnClient.CDNError); ok {
-					errCode := byteErr.Code
-					if isPermanentCommonError(errCode) || isPermanentCdnError(errCode) {
-						return backoff.Permanent(fmt.Errorf("err:\n%s", byteErr))
-					}
-
-					return fmt.Errorf("err:\n%s", errCode)
-				}
-				// Append current page results
-			}
-			cdnDomains = append(cdnDomains, response.Result.Data...)
-			return
-		}
-
-		// Retry with backoff
-		reconnectBackoff := backoff.NewExponentialBackOff()
-		reconnectBackoff.MaxElapsedTime = 30 * time.Second
-		err = backoff.Retry(describeCdnDomain, reconnectBackoff)
+	var response *byteplusCdnClient.ListCdnDomainsResponse
+	var err error
+	describeCdnDomain := func() (err error) {
+		// Call the API
+		// Paging handling not needed, because it will always only output 1 CDN domain.
+		response, err = d.client.ListCdnDomains(ListCdnDomainsRequest)
 		if err != nil {
-			resp.Diagnostics.AddError(
-				"[API ERROR] Failed to Describe CDN Domain",
-				err.Error(),
-			)
-			return
-		}
+			if byteErr, ok := err.(byteplusCdnClient.CDNError); ok {
+				errCode := byteErr.Code
+				if isPermanentCommonError(errCode) || isPermanentCdnError(errCode) {
+					return backoff.Permanent(fmt.Errorf("err:\n%s", byteErr))
+				}
 
-		// Check if more pages exist
-		if pageNum*pageSize > response.Result.Total {
-			break
+				return fmt.Errorf("err:\n%s", errCode)
+			}
 		}
-		pageNum++
+		cdnDomains = append(cdnDomains, response.Result.Data...)
+		return
+	}
+
+	// Retry with backoff
+	reconnectBackoff := backoff.NewExponentialBackOff()
+	reconnectBackoff.MaxElapsedTime = 30 * time.Second
+	err = backoff.Retry(describeCdnDomain, reconnectBackoff)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"[API ERROR] Failed to Describe CDN Domain",
+			err.Error(),
+		)
+		return
 	}
 
 	for _, cdnDomain := range cdnDomains {
