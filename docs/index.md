@@ -22,7 +22,12 @@ terraform {
 }
 
 provider "st-byteplus" {
-  region     = "ap-singapore-1"
+  region = "ap-singapore-1"
+}
+
+resource "st-byteplus_iam_policy" "name" {
+  user_name         = "lq-user-1"
+  attached_policies = ["VPCFullAccess", "TOSFullAccess", "lqtestpolicy"]
 }
 ```
 
@@ -31,6 +36,6 @@ provider "st-byteplus" {
 
 ### Optional
 
-- `region` (String) Region for Byteplus API. May also be provided via BYTEPLUS_REGION environment variable.
 - `access_key` (String) Access Key for Byteplus API. May also be provided via BYTEPLUS_ACCESS_KEY environment variable
+- `region` (String) Region for Byteplus API. May also be provided via BYTEPLUS_REGION environment variable.
 - `secret_key` (String, Sensitive) Secret key for Byteplus API. May also be provided via BYTEPLUS_SECRET_KEY environment variable

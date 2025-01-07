@@ -452,15 +452,18 @@ func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Dia
 
 	return nil
 }
+
 /*
 	1. For each Current Attached Policy Documents
 		a. Extract Statement
 		b. Split Statement by Comma
 		c. Append into Slice
-	2. Get All Original Attached Policy Document and Turn into a slice
+	2. Get All Original Attached Policy Document and Turn into a Slice
 		a. Extract Statement
 		b. Split Statement by Comma
 	3. Compare if slices are not equal
+
+	ASSUMPTION: The Statements are in Order
 */
 
 func (r *iamPolicyResource) comparePolicy(state *iamPolicyResourceModel) diag.Diagnostics {
@@ -469,7 +472,7 @@ func (r *iamPolicyResource) comparePolicy(state *iamPolicyResourceModel) diag.Di
 	currStatements := []string{}
 	oriStatements := []string{}
 
-	// 1. Get All Current Attached Policy Document and Combine into a slice
+	// 1. For each Current Attached Policy Documents
 	getPolicyCurr := func() error {
 		for _, currPolicyName := range state.AttachedPolicies.Elements() {
 			for _, policyType := range policyTypes {
@@ -521,7 +524,7 @@ func (r *iamPolicyResource) comparePolicy(state *iamPolicyResourceModel) diag.Di
 		}
 	}
 
-	// 2. Get All Original Attached Policy Document and Turn into a slice
+	// 2. Get All Original Attached Policy Document and Turn into a Slice
 	getPolicyOri := func() error {
 		data := make(map[string]string)
 
@@ -539,7 +542,7 @@ func (r *iamPolicyResource) comparePolicy(state *iamPolicyResourceModel) diag.Di
 				handleAPIError(err)
 			}
 
-			//Sometimes combined policies may be removed accidentally by human mistake or API error.
+			// Sometimes combined policies may be removed accidentally by human mistake or API error.
 			if getPolicyResponse != nil && getPolicyResponse.Policy != nil {
 				if getPolicyResponse.Policy.PolicyName != nil && getPolicyResponse.Policy.PolicyDocument != nil {
 					oriPolicyName := *getPolicyResponse.Policy.PolicyName
@@ -598,6 +601,7 @@ func (r *iamPolicyResource) comparePolicy(state *iamPolicyResourceModel) diag.Di
 		}
 	}
 
+	//3. Compare if slices are not equal
 	if len(oriStatements) != len(currStatements) {
 		state.AttachedPolicies = types.ListNull(types.StringType)
 		return nil

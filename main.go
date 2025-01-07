@@ -9,7 +9,7 @@ import (
 )
 
 // Provider documentation generation.
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name st-alicloud
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name st-byteplus
 
 func main() {
 	providerAddress := os.Getenv("PROVIDER_LOCAL_PATH")

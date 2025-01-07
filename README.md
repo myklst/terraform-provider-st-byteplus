@@ -50,6 +50,12 @@ scenario. The reason behind every resources and data sources are stated as below
 
   - Added client_config block to allow overriding the Provider configuration.
 
+### Resources
+
+- **st-byteplus_iam_policy**
+
+  -
+
 References
 ----------
 
