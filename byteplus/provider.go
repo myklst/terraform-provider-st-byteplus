@@ -4,6 +4,10 @@ import (
 	"context"
 	"os"
 
+	byteplus "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus"
+	byteplusCredentials "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/credentials"
+	byteplusSession "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/session"
+	byteplusIamClient "github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
 	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -17,6 +21,7 @@ import (
 // Wrapper of Byteplus client
 type byteplusClients struct {
 	cdnClient *byteplusCdnClient.CDN
+	iamClient *byteplusIamClient.IAM
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -178,14 +183,20 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		Region:          region,
 	}
 
-	// Initialize the Default CDN Client and set the credentials
+	// Byteplus CDN Client
 	cdnClientConfig := clientCredentialsConfig
 	cdnClient := byteplusCdnClient.NewInstance()
 	cdnClient.Client.SetCredential(cdnClientConfig)
 
+	// Byteplus IAM Client
+	iamConfig := byteplus.NewConfig().WithCredentials(byteplusCredentials.NewStaticCredentials(accessKey, secretKey, "")).WithRegion(region)
+	sess, _ := byteplusSession.NewSession(iamConfig)
+	iamClient := byteplusIamClient.New(sess)
+
 	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{
 		cdnClient: cdnClient,
+		iamClient: iamClient,
 	}
 
 	// Make the Byteplus client available during DataSource and Resource
