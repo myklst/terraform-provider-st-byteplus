@@ -7,11 +7,10 @@ terraform {
 }
 
 provider "st-byteplus" {
-  region     = "ap-singapore-1"
+  region = "ap-singapore-1"
 }
 
-# resource "st-byteplus_iam_policy" "name" {}
-
-# data "st-byteplus_cdn_domain" "example" {
-#   domain_name = "www.example.com"
-# }
+resource "st-byteplus_iam_policy" "name" {
+  user_name         = ""
+  attached_policies = ""
+}

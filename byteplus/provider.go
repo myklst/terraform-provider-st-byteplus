@@ -211,7 +211,8 @@ func (p *byteplusProvider) DataSources(_ context.Context) []func() datasource.Da
 	}
 }
 
-// Resources defines the resources implemented in the provider.
 func (p *byteplusProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewIamPolicyResource,
+	}
 }
