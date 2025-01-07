@@ -11,6 +11,7 @@ provider "st-byteplus" {
 }
 
 resource "st-byteplus_iam_policy" "name" {
-  user_name         = ""
-  attached_policies = ""
+  user_name         = "lq-user-1"
+  attached_policies = ["VPCFullAccess", "TOSFullAccess", "lqtestpolicy"]
 }
+
