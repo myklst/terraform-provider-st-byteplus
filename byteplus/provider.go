@@ -190,8 +190,18 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 
 	// Byteplus IAM Client
 	iamConfig := byteplus.NewConfig().WithCredentials(byteplusCredentials.NewStaticCredentials(accessKey, secretKey, "")).WithRegion(region)
-	sess, _ := byteplusSession.NewSession(iamConfig)
+	sess, err := byteplusSession.NewSession(iamConfig)
 	iamClient := byteplusIamClient.New(sess)
+
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Create Byteplus IAM API Client",
+			"An unexpected error occurred when creating the Byteplus IAM API client. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"BytePlus IAM Client Error: "+err.Error(),
+		)
+		return
+	}
 
 	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{
