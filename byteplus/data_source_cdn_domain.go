@@ -131,7 +131,6 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 
 	pageNum := int64(1)
 	pageSize := int64(100)
-	var cdnDomains []byteplusCdnClient.DomainSummary
 
 	// Create the request
 	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
@@ -142,6 +141,7 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 
 	var response *byteplusCdnClient.ListCdnDomainsResponse
 	var err error
+
 	describeCdnDomain := func() (err error) {
 		// Call the API
 		// Paging handling not needed, because it will always only output 1 CDN domain.
@@ -156,7 +156,8 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 				return fmt.Errorf("err:\n%s", errCode)
 			}
 		}
-		cdnDomains = append(cdnDomains, response.Result.Data...)
+
+		// No need to append to a slice, as we're only dealing with one domain.
 		return
 	}
 
@@ -172,10 +173,16 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	for _, cdnDomain := range cdnDomains {
+	// Assuming the response always contains exactly one CDN domain
+	if len(response.Result.Data) > 0 {
+		cdnDomain := response.Result.Data[0]
 		state.Domain = types.StringValue(cdnDomain.Domain)
 		state.Cname = types.StringValue(cdnDomain.Cname)
 		state.Status = types.StringValue(cdnDomain.Status)
+	} else {
+		state.Domain = types.StringNull()
+		state.Cname = types.StringNull()
+		state.Status = types.StringNull()
 	}
 
 	// Set state
