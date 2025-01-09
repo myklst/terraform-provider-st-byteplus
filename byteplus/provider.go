@@ -75,8 +75,8 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// If practitioner provided a configuration value for any of the
-	// attributes, it must be a known value.
+	// If practitioner provided a configuration value for any of the attributes,
+	// it must be a known value.
 	if config.Region.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("region"),
@@ -108,8 +108,8 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Default values to environment variables, but override
-	// with Terraform configuration value if set.
+	// Default values to environment variables, but override with Terraform
+	// configuration value if set.
 	var region, accessKey, secretKey string
 
 	if !config.Region.IsNull() {
@@ -130,8 +130,8 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		secretKey = os.Getenv("BYTEPLUS_SECRET_KEY")
 	}
 
-	// If any of the expected configuration are missing, return
-	// errors with provider-specific guidance.
+	// If any of the expected configuration are missing, return errors with
+	// provider-specific guidance.
 	if region == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("region"),
@@ -188,8 +188,8 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		cdnClient: cdnClient,
 	}
 
-	// Make the Byteplus client available during DataSource and Resource
-	// type Configure methods.
+	// Make the Byteplus client available during DataSource and Resource type
+	// Configure methods.
 	resp.DataSourceData = byteplusClients
 	resp.ResourceData = byteplusClients
 }
