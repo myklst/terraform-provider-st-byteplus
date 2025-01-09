@@ -4,10 +4,6 @@ import (
 	"context"
 	"os"
 
-	byteplus "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus"
-	byteplusCredentials "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/credentials"
-	byteplusSession "github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/session"
-	byteplusIamClient "github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
 	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -21,7 +17,6 @@ import (
 // Wrapper of Byteplus client
 type byteplusClients struct {
 	cdnClient *byteplusCdnClient.CDN
-	iamClient *byteplusIamClient.IAM
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -188,25 +183,9 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	cdnClient := byteplusCdnClient.NewInstance()
 	cdnClient.Client.SetCredential(cdnClientConfig)
 
-	// Byteplus IAM Client
-	iamConfig := byteplus.NewConfig().WithCredentials(byteplusCredentials.NewStaticCredentials(accessKey, secretKey, "")).WithRegion(region)
-	sess, err := byteplusSession.NewSession(iamConfig)
-	iamClient := byteplusIamClient.New(sess)
-
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Create Byteplus IAM API Client",
-			"An unexpected error occurred when creating the Byteplus IAM API client. "+
-				"If the error is not clear, please contact the provider developers.\n\n"+
-				"BytePlus IAM Client Error: "+err.Error(),
-		)
-		return
-	}
-
 	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{
 		cdnClient: cdnClient,
-		iamClient: iamClient,
 	}
 
 	// Make the Byteplus client available during DataSource and Resource
