@@ -9,4 +9,3 @@ terraform {
 provider "st-byteplus" {
   region = "ap-singapore-1"
 }
- 

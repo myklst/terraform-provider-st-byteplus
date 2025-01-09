@@ -1,5 +1,5 @@
 Terraform Custom Provider for Byteplus
-===========================================
+======================================
 
 This Terraform custom provider is designed for own use case scenario.
 
@@ -8,12 +8,12 @@ Supported Versions
 
 | Terraform version | minimum provider version |maxmimum provider version
 | ---- | ---- | ----|
-| >= 1.3.x	| 0.1.1	| latest |
+| >= 1.8.x	| 0.1.1	| latest |
 
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 1.3.x
+-	[Terraform](https://www.terraform.io/downloads.html) 1.8.x
 -	[Go](https://golang.org/doc/install) 1.19 (to build the provider plugin)
 
 Local Installation
@@ -49,12 +49,6 @@ scenario. The reason behind every resources and data sources are stated as below
 - **st-byteplus_cdn_domain**
 
   - Added client_config block to allow overriding the Provider configuration.
-
-### Resources
-
-- **st-byteplus_iam_policy**
-
-  -
 
 References
 ----------

@@ -52,7 +52,7 @@ func (p *byteplusProvider) Metadata(_ context.Context, _ provider.MetadataReques
 // Schema defines the provider-level schema for configuration data.
 func (p *byteplusProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "The Byteplus provider is used to interact with the many resources supported by Byteplus. " +
+		Description: "The Byteplus provider is used to interact with the many resources supported by Byteplus." +
 			"The provider needs to be configured with the proper credentials before it can be used.",
 		Attributes: map[string]schema.Attribute{
 			"region": schema.StringAttribute{
@@ -60,11 +60,11 @@ func (p *byteplusProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 				Optional:    true,
 			},
 			"access_key": schema.StringAttribute{
-				Description: "Access Key for Byteplus API. May also be provided via BYTEPLUS_ACCESS_KEY environment variable",
+				Description: "Access Key for Byteplus API. May also be provided via BYTEPLUS_ACCESS_KEY environment variable.",
 				Optional:    true,
 			},
 			"secret_key": schema.StringAttribute{
-				Description: "Secret key for Byteplus API. May also be provided via BYTEPLUS_SECRET_KEY environment variable",
+				Description: "Secret key for Byteplus API. May also be provided via BYTEPLUS_SECRET_KEY environment variable.",
 				Optional:    true,
 				Sensitive:   true,
 			},
@@ -222,7 +222,5 @@ func (p *byteplusProvider) DataSources(_ context.Context) []func() datasource.Da
 }
 
 func (p *byteplusProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewIamPolicyResource,
-	}
+	return []func() resource.Resource{}
 }

@@ -123,8 +123,8 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 	if domainName == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("domain_name"),
-			"Missing CDN Domain Name",
-			"Domain name must not be empty",
+			"Missing CDN Domain Name!",
+			"Domain name must not be empty.",
 		)
 		return
 	}
@@ -157,7 +157,6 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 			}
 		}
 
-		// No need to append to a slice, as we're only dealing with one domain.
 		return
 	}
 
@@ -167,19 +166,27 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 	err = backoff.Retry(describeCdnDomain, reconnectBackoff)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"[API ERROR] Failed to Describe CDN Domain",
+			"[API ERROR] Failed to Describe CDN Domain.",
 			err.Error(),
 		)
 		return
 	}
 
-	// Assuming the response always contains exactly one CDN domain
-	if len(response.Result.Data) > 0 {
+	switch {
+	case len(response.Result.Data) == 1:
 		cdnDomain := response.Result.Data[0]
 		state.Domain = types.StringValue(cdnDomain.Domain)
 		state.Cname = types.StringValue(cdnDomain.Cname)
 		state.Status = types.StringValue(cdnDomain.Status)
-	} else {
+	case len(response.Result.Data) > 1:
+		// We will only expect 1 result as there will be no repeating CDN domain
+		// listed with 'domain name' filter.
+		resp.Diagnostics.AddError(
+			"[API ERROR] Multiple CDN Domain Found.",
+			"Multiple CDN domain found with domain name: "+domainName+".",
+		)
+	default:
+		// If not found, return null to avoid error in data source.
 		state.Domain = types.StringNull()
 		state.Cname = types.StringNull()
 		state.Status = types.StringNull()
