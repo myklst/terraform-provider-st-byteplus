@@ -16,7 +16,7 @@ The Byteplus provider is used to interact with the many resources supported by B
 terraform {
   required_providers {
     st-byteplus = {
-      source = "example.local/myklst/st-byteplus"
+      source = "myklst/st-byteplus"
     }
   }
 }

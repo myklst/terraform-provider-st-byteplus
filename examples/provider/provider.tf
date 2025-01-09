@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     st-byteplus = {
-      source = "example.local/myklst/st-byteplus"
+      source = "myklst/st-byteplus"
     }
   }
 }
