@@ -1,6 +1,8 @@
 package byteplus
 
 import (
+	"strings"
+
 	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
@@ -54,4 +56,8 @@ func initNewClient(providerConfig *byteplusBaseClient.Client, planConfig *client
 	}
 
 	return
+}
+
+func trimStringQuotes(input string) string {
+	return strings.TrimPrefix(strings.TrimSuffix(input, "\""), "\"")
 }
