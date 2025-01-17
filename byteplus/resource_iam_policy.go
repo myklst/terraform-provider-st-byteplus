@@ -3,8 +3,8 @@ package byteplus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -37,15 +37,15 @@ type iamPolicyResource struct {
 }
 
 type iamPolicyResourceModel struct {
-	AttachedPolicies types.List   `tfsdk:"attached_policies"`
-	Policies         types.List   `tfsdk:"policies"`
-	OldPoliciesState types.List   `tfsdk:"old_policies_state"`
-	UserName         types.String `tfsdk:"user_name"`
+	AttachedPolicies       types.List      `tfsdk:"attached_policies"`
+	Policies               []*policyDetail `tfsdk:"policies"` // TODO: remove when 'Policies' is no longer used.
+	CombinedPolices        []*policyDetail `tfsdk:"combined_policies"`
+	AttachedPoliciesDetail []*policyDetail `tfsdk:"attached_policies_detail"`
+	UserName               types.String    `tfsdk:"user_name"`
 }
 
 type policyDetail struct {
 	PolicyName     types.String `tfsdk:"policy_name"`
-	PolicyType     types.String `tfsdk:"policy_type"`
 	PolicyDocument types.String `tfsdk:"policy_document"`
 }
 
@@ -66,8 +66,10 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Required:    true,
 				ElementType: types.StringType,
 			},
+			// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
+			// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
 			"policies": schema.ListNestedAttribute{
-				Description: "A list of policies.",
+				Description: "[Deprecated] A list of policies.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -82,8 +84,8 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					},
 				},
 			},
-			"old_policies_state": schema.ListNestedAttribute{
-				Description: "A list of policies. Used to compare whether policy has been changed outside of Terraform",
+			"combined_policies": schema.ListNestedAttribute{
+				Description: "A list of combined policies that are attached to users.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -91,8 +93,20 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 							Description: "The policy name.",
 							Computed:    true,
 						},
-						"policy_type": schema.StringAttribute{
-							Description: "The policy type.",
+						"policy_document": schema.StringAttribute{
+							Description: "The policy document of the RAM policy.",
+							Computed:    true,
+						},
+					},
+				},
+			},
+			"attached_policies_detail": schema.ListNestedAttribute{
+				Description: "A list of policies. Used to compare whether policy has been changed outside of Terraform",
+				Computed:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"policy_name": schema.StringAttribute{
+							Description: "The policy name.",
 							Computed:    true,
 						},
 						"policy_document": schema.StringAttribute{
@@ -121,7 +135,7 @@ func (r *iamPolicyResource) Configure(_ context.Context, req resource.ConfigureR
 // Create implements resource.Resource.
 func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan *iamPolicyResourceModel
-	getPlanDiags := req.Plan.Get(ctx, &plan)
+	getPlanDiags := req.Config.Get(ctx, &plan)
 	resp.Diagnostics.Append(getPlanDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -138,25 +152,8 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 
 	state := &iamPolicyResourceModel{}
 	state.AttachedPolicies = plan.AttachedPolicies
-	state.Policies = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		policy,
-	)
-	state.OldPoliciesState = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_type":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		currentPoliciesList,
-	)
+	state.CombinedPolices = policy
+	state.AttachedPoliciesDetail = currentPoliciesList
 	state.UserName = plan.UserName
 
 	if err := r.attachPolicyToUser(state); err != nil {
@@ -167,8 +164,8 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	readPolicyDiags := r.readPolicy(state)
-	resp.Diagnostics.Append(readPolicyDiags...)
+	_, errReadPolicyDiags := r.readCombinedPolicy(state)
+	resp.Diagnostics.Append(errReadPolicyDiags)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -188,33 +185,11 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	readPolicyDiags := r.readPolicy(state)
-	resp.Diagnostics.Append(readPolicyDiags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	listPoliciesForUser := func() error {
-		listPoliciesForUserRequest := &iam.ListAttachedUserPoliciesInput{
-			UserName: byteplus.String(state.UserName.ValueString()),
-		}
-
-		_, err := r.client.ListAttachedUserPolicies(listPoliciesForUserRequest)
-		if err != nil {
-			handleAPIError(err)
-		}
-		return nil
-	}
-
-	reconnectBackoff := backoff.NewExponentialBackOff()
-	reconnectBackoff.MaxElapsedTime = 30 * time.Second
-	err := backoff.Retry(listPoliciesForUser, reconnectBackoff)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"[API ERROR] Failed to Read Users for Group",
-			err.Error(),
-		)
-		return
+	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
+	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
+	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
+		state.CombinedPolices = state.Policies
+		state.Policies = nil
 	}
 
 	// This state will be using to compare with the current state.
@@ -225,13 +200,39 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	if len(state.OldPoliciesState.Elements()) != len(oriState.OldPoliciesState.Elements()) {
-		resp.Diagnostics.AddWarning("One of the policies could not be found.", "The policy used for combined polices may be deleted due to human mistake or API error.")
-		state.AttachedPolicies = types.ListNull(types.StringType) //This is to ensure Update() is called
-	} else if len(state.Policies.Elements()) != len(oriState.Policies.Elements()) {
-		resp.Diagnostics.AddWarning("Combined policies not found.", "The combined policies attached to the user may be deleted due to human mistake or API error.")
-		state.AttachedPolicies = types.ListNull(types.StringType)
-	} else {
+	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
+	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
+	if len(oriState.CombinedPolices) == 0 && len(oriState.Policies) != 0 {
+		oriState.CombinedPolices = oriState.Policies
+		state.Policies = nil
+	}
+
+	warnReadPolicyDiags, errReadPolicyDiags := r.readCombinedPolicy(state)
+	resp.Diagnostics.Append(warnReadPolicyDiags, errReadPolicyDiags)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	setStateDiags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(setStateDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	warnReadPolicyDiags, errReadPolicyDiags = r.readAttachedPolicy(state, true)
+
+	resp.Diagnostics.Append(warnReadPolicyDiags, errReadPolicyDiags)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	setStateDiags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(setStateDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if warnReadPolicyDiags == nil {
 		compareEachPolicyDiags := r.compareEachPolicy(state, oriState)
 		resp.Diagnostics.Append(compareEachPolicyDiags...)
 		if resp.Diagnostics.HasError() {
@@ -239,7 +240,7 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		}
 	}
 
-	setStateDiags := resp.State.Set(ctx, &state)
+	setStateDiags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(setStateDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -248,7 +249,7 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state *iamPolicyResourceModel
-	getPlanDiags := req.Plan.Get(ctx, &plan)
+	getPlanDiags := req.Config.Get(ctx, &plan)
 	resp.Diagnostics.Append(getPlanDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -256,6 +257,19 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 
 	getStateDiags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(getStateDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
+	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
+	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
+		state.CombinedPolices = state.Policies
+		state.Policies = nil
+	}
+
+	warnReadPolicyDiags, errReadPolicyDiags := r.readAttachedPolicy(plan, false) //to prevent removal of combined policies, if user inputs non-existing attached policies
+	resp.Diagnostics.Append(warnReadPolicyDiags, errReadPolicyDiags)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -276,25 +290,8 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	state.AttachedPolicies = plan.AttachedPolicies
-	state.Policies = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		policy,
-	)
-	state.OldPoliciesState = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_type":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		currentPoliciesList,
-	)
+	state.CombinedPolices = policy
+	state.AttachedPoliciesDetail = currentPoliciesList
 	state.UserName = plan.UserName
 
 	if err := r.attachPolicyToUser(state); err != nil {
@@ -305,8 +302,8 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	readPolicyDiags := r.readPolicy(state)
-	resp.Diagnostics.Append(readPolicyDiags...)
+	_, errReadPolicyDiags = r.readCombinedPolicy(state)
+	resp.Diagnostics.Append(errReadPolicyDiags)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -327,6 +324,13 @@ func (r *iamPolicyResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
+	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
+	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
+	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
+		state.CombinedPolices = state.Policies
+		state.Policies = nil
+	}
+
 	removePolicyDiags := r.removePolicy(state)
 	resp.Diagnostics.Append(removePolicyDiags...)
 	if resp.Diagnostics.HasError() {
@@ -334,8 +338,8 @@ func (r *iamPolicyResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-func (r *iamPolicyResource) createPolicy(plan *iamPolicyResourceModel) (policiesList []attr.Value, currentPoliciesList []attr.Value, err error) {
-	combinedPolicyStatements, notCombinedPolicies, currentPoliciesStatements, err := r.getPolicyDocument(plan)
+func (r *iamPolicyResource) createPolicy(plan *iamPolicyResourceModel) (policiesList []*policyDetail, currentPoliciesList []*policyDetail, err error) {
+	combinedPolicyStatements, notCombinedPolicies, currentPoliciesStatements, err := r.combinePolicyDocument(plan)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -357,19 +361,22 @@ func (r *iamPolicyResource) createPolicy(plan *iamPolicyResourceModel) (policies
 		return nil
 	}
 
+	reconnectBackoff := backoff.NewExponentialBackOff()
+	reconnectBackoff.MaxElapsedTime = 30 * time.Second
+	err = backoff.Retry(createPolicy, reconnectBackoff)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for i, policies := range combinedPolicyStatements {
 		policyName := plan.UserName.ValueString() + "-" + strconv.Itoa(i+1)
 
-		policyObj := types.ObjectValueMust(
-			map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-			map[string]attr.Value{
-				"policy_name":     types.StringValue(policyName),
-				"policy_document": types.StringValue(policies),
-			},
-		)
+		policyObj := &policyDetail{
+			PolicyName:     types.StringValue(policyName),
+			PolicyDocument: types.StringValue(policies),
+		}
+
 		policiesList = append(policiesList, policyObj)
 	}
 
@@ -377,62 +384,48 @@ func (r *iamPolicyResource) createPolicy(plan *iamPolicyResourceModel) (policies
 	// policy "statement" will be hitting the limitation of "maximum number of
 	// attached policies" easily.
 	for _, policy := range notCombinedPolicies {
-		policyObj := types.ObjectValueMust(
-			map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-			map[string]attr.Value{
-				"policy_name":     types.StringValue(policy.policyName),
-				"policy_document": types.StringValue(policy.policyDocument),
-			},
-		)
+		policyObj := &policyDetail{
+			PolicyName:     types.StringValue(policy.policyName),
+			PolicyDocument: types.StringValue(policy.policyDocument),
+		}
+
 		policiesList = append(policiesList, policyObj)
 	}
 
 	// These policies are used for comparing whether there is a differerence
 	// between current policies in state file and in the console
-
 	for _, policy := range currentPoliciesStatements {
-		policyObj := types.ObjectValueMust(
-			map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_type":     types.StringType,
-				"policy_document": types.StringType,
-			},
-			map[string]attr.Value{
-				"policy_name":     types.StringValue(policy.policyName),
-				"policy_type":     types.StringValue(policy.policyType),
-				"policy_document": types.StringValue(policy.policyDocument),
-			},
-		)
+		policyObj := &policyDetail{
+			PolicyName:     types.StringValue(strings.Trim(policy.policyName, "\"")),
+			PolicyDocument: types.StringValue(policy.policyDocument),
+		}
+
 		currentPoliciesList = append(currentPoliciesList, policyObj)
 	}
 
-	reconnectBackoff := backoff.NewExponentialBackOff()
-	reconnectBackoff.MaxElapsedTime = 30 * time.Second
-	return policiesList, currentPoliciesList, backoff.Retry(createPolicy, reconnectBackoff)
+	return policiesList, currentPoliciesList, nil
 }
 
-func (r *iamPolicyResource) readPolicy(state *iamPolicyResourceModel) diag.Diagnostics {
+func (r *iamPolicyResource) readCombinedPolicy(state *iamPolicyResourceModel) (warnDiagnostics, errDiagnostics diag.Diagnostic) {
 	policyDetailsState := []*policyDetail{}
-	getPolicyResponse := &iam.GetPolicyOutput{}
 
-	var err error
+	var warning, err error
 	getPolicy := func() error {
-		data := make(map[string]string)
-
-		for _, policies := range state.Policies.Elements() {
-			json.Unmarshal([]byte(policies.String()), &data)
-
+		for _, combinedPolicy := range state.CombinedPolices {
 			getPolicyRequest := iam.GetPolicyInput{
-				PolicyName: byteplus.String(data["policy_name"]),
+				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 				PolicyType: byteplus.String("Custom"),
 			}
 
-			getPolicyResponse, err = r.client.GetPolicy(&getPolicyRequest)
-			if err != nil {
-				handleAPIError(err)
+			getPolicyResponse, errGetCombinedPolicy := r.client.GetPolicy(&getPolicyRequest)
+			if errGetCombinedPolicy != nil {
+				if errGetCombinedPolicy.(bytepluserr.Error).Code() == "PolicyNotExist" {
+					// To detect if policy has been deleted after being attached.
+					warning = errors.Join(warning, handleAPIError(errGetCombinedPolicy))
+				} else {
+					err = errors.Join(err, handleAPIError(errGetCombinedPolicy))
+				}
+				continue
 			}
 
 			// Sometimes combined policies may be removed accidentally by human mistake or API error.
@@ -453,144 +446,134 @@ func (r *iamPolicyResource) readPolicy(state *iamPolicyResourceModel) diag.Diagn
 	reconnectBackoff.MaxElapsedTime = 30 * time.Second
 	err = backoff.Retry(getPolicy, reconnectBackoff)
 	if err != nil {
-		return diag.Diagnostics{
-			diag.NewErrorDiagnostic(
-				"[API ERROR] Failed to Read Policy.",
-				err.Error(),
-			),
-		}
+		errDiagnostics = diag.NewErrorDiagnostic(
+			"[API ERROR] Failed to Read Combined Policy",
+			err.Error(),
+		)
+		return nil, errDiagnostics
 	}
 
-	policyDetails := []attr.Value{}
-	for _, policy := range policyDetailsState {
-		policyDetails = append(policyDetails, types.ObjectValueMust(
-			map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-			map[string]attr.Value{
-				"policy_name":     types.StringValue(policy.PolicyName.ValueString()),
-				"policy_document": types.StringValue(policy.PolicyDocument.ValueString()),
-			},
-		))
+	if warning != nil {
+		warnDiagnostics = diag.NewWarningDiagnostic(
+			"Combined Policies could not be found.",
+			"The combined policies attached to the user may be deleted due to human mistake or API error. This resource will be re-created.\n\n"+
+				warning.Error(),
+		)
+
+		state.AttachedPolicies = types.ListNull(types.StringType) //This is to ensure Update() is called
 	}
-	state.Policies = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		policyDetails,
-	)
-	return r.readEachPolicy(state)
+
+	state.CombinedPolices = policyDetailsState
+
+	return warnDiagnostics, errDiagnostics
 }
 
-func (r *iamPolicyResource) readEachPolicy(state *iamPolicyResourceModel) diag.Diagnostics {
-	policyDetailsState := []*policyDetail{}
-	getPolicyResponse := &iam.GetPolicyOutput{}
-	data := make(map[string]string)
+func (r *iamPolicyResource) readAttachedPolicy(state *iamPolicyResourceModel, inRead bool) (warnDiagnostics, errDiagnostics diag.Diagnostic) {
+	attachedPolicies := state.AttachedPolicies.Elements()
+	policyDetailsState, warning, err := r.fetchPolicies(attachedPolicies, inRead)
 
-	if len(state.OldPoliciesState.Elements()) == 0 {
-		return nil
+	if err != nil {
+		errDiagnostics = diag.NewErrorDiagnostic(
+			"[API ERROR] Failed to Read Attached Policy",
+			err.Error(),
+		)
 	}
 
-	var err error
+	if warning != nil {
+		warnDiagnostics = diag.NewWarningDiagnostic(
+			"One (or more) of the Attached Policy could not be found.",
+			"The policy used for Combined Policies may be deleted due to human mistake or API error.\n\n"+
+				warning.Error(),
+		)
+	}
+
+	state.AttachedPoliciesDetail = policyDetailsState
+	if warnDiagnostics != nil {
+		state.AttachedPolicies = types.ListNull(types.StringType) // Ensure Update() is called
+	}
+
+	return warnDiagnostics, errDiagnostics
+}
+
+func (r *iamPolicyResource) fetchPolicies(attachedPolicies []attr.Value, inRead bool) (policyDetailsState []*policyDetail, errNotExist, errOther error) {
+	getPolicyResponse := &iam.GetPolicyOutput{}
+
+	var errGetEachPolicy error
+
 	getPolicy := func() error {
-		for _, oldPolicy := range state.OldPoliciesState.Elements() {
-
-			json.Unmarshal([]byte(oldPolicy.String()), &data)
-			policyNameStr := strings.Trim(data["policy_name"], "\"")
-
+	OuterLoop:
+		for _, policy := range attachedPolicies {
 			getPolicyRequest := &iam.GetPolicyInput{
-				PolicyName: byteplus.String(policyNameStr),
-				PolicyType: byteplus.String(data["policy_type"]),
+				PolicyName: byteplus.String(strings.Trim(policy.String(), "\"")),
+				PolicyType: byteplus.String("Custom"),
 			}
 
-			getPolicyResponse, err = r.client.GetPolicy(getPolicyRequest)
-			if err != nil {
-				// To detect if policy has been deleted after being attached.
-				continue
+			for {
+				getPolicyResponse, errGetEachPolicy = r.client.GetPolicy(getPolicyRequest)
+				if errGetEachPolicy != nil {
+					switch errGetEachPolicy.(bytepluserr.Error).Code() {
+					case "PolicyNotExist":
+						if *getPolicyRequest.PolicyType == "Custom" {
+							*getPolicyRequest.PolicyType = "System" // Switch to System and Retry
+							continue
+						} else if inRead {
+							errNotExist = errors.Join(errNotExist, handleAPIError(errGetEachPolicy))
+						} else {
+							errOther = errors.Join(errOther, handleAPIError(errGetEachPolicy))
+						}
+					default:
+						errOther = errors.Join(errOther, handleAPIError(errGetEachPolicy))
+					}
+					continue OuterLoop
+				}
+				break
 			}
 
-			// Sometimes combined policies may be removed accidentally by human mistake or API error.
 			if getPolicyResponse != nil && getPolicyResponse.Policy != nil {
 				if getPolicyResponse.Policy.PolicyName != nil && getPolicyResponse.Policy.PolicyDocument != nil {
 					policyDetail := policyDetail{
 						PolicyName:     types.StringValue(*getPolicyResponse.Policy.PolicyName),
-						PolicyType:     types.StringValue(*getPolicyRequest.PolicyType),
 						PolicyDocument: types.StringValue(*getPolicyResponse.Policy.PolicyDocument),
 					}
 					policyDetailsState = append(policyDetailsState, &policyDetail)
 				}
 			}
 		}
-
 		return nil
 	}
 
 	reconnectBackoff := backoff.NewExponentialBackOff()
 	reconnectBackoff.MaxElapsedTime = 30 * time.Second
-	err = backoff.Retry(getPolicy, reconnectBackoff)
-	if err != nil {
-		return diag.Diagnostics{
-			diag.NewErrorDiagnostic(
-				"[API ERROR] Failed to Read Policy.",
-				err.Error(),
-			),
-		}
-	}
+	backoff.Retry(getPolicy, reconnectBackoff)
 
-	policyDetails := []attr.Value{}
-	for _, policy := range policyDetailsState {
-		policyDetails = append(policyDetails, types.ObjectValueMust(
-			map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_type":     types.StringType,
-				"policy_document": types.StringType,
-			},
-			map[string]attr.Value{
-				"policy_name":     types.StringValue(policy.PolicyName.ValueString()),
-				"policy_type":     types.StringValue(policy.PolicyType.ValueString()),
-				"policy_document": types.StringValue(policy.PolicyDocument.ValueString()),
-			},
-		))
-	}
-	state.OldPoliciesState = types.ListValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"policy_name":     types.StringType,
-				"policy_type":     types.StringType,
-				"policy_document": types.StringType,
-			},
-		},
-		policyDetails,
-	)
-
-	return nil
+	return policyDetailsState, errNotExist, errOther
 }
 
 func (r *iamPolicyResource) compareEachPolicy(newState, oriState *iamPolicyResourceModel) diag.Diagnostics {
-	oldData := make(map[string]string)
-	newData := make(map[string]string)
+	var driftedPolicies []string
 
-	for _, currPolicyDetailState := range newState.OldPoliciesState.Elements() {
-		for _, oldPolicyDetailState := range oriState.OldPoliciesState.Elements() {
-
-			json.Unmarshal([]byte(currPolicyDetailState.String()), &newData)
-			json.Unmarshal([]byte(oldPolicyDetailState.String()), &oldData)
-
-			if newData["policy_name"] == oldData["policy_name"] {
-				if newData["policy_document"] != oldData["policy_document"] {
-					newState.AttachedPolicies = types.ListNull(types.StringType)
-					return diag.Diagnostics{
-						diag.NewWarningDiagnostic(
-							"Policy Drift Detected.",
-							"It may be caused by modifying the .json file outside of Terraform.",
-						),
-					}
+	for _, oldPolicyDetailState := range oriState.AttachedPoliciesDetail {
+		for _, currPolicyDetailState := range newState.AttachedPoliciesDetail {
+			if oldPolicyDetailState.PolicyName.String() == currPolicyDetailState.PolicyName.String() {
+				if oldPolicyDetailState.PolicyDocument.String() != currPolicyDetailState.PolicyDocument.String() {
+					driftedPolicies = append(driftedPolicies, oldPolicyDetailState.PolicyName.String())
 				}
 			}
+		}
+	}
+
+	if len(driftedPolicies) > 0 {
+		driftedPoliciesMessage := fmt.Sprintf(
+			"The following policies have drifted: %s. It may be caused by modifying the .json file outside of Terraform.",
+			strings.Join(driftedPolicies, ", "),
+		)
+
+		newState.AttachedPolicies = types.ListNull(types.StringType) // Set the state to trigger an update.
+		return diag.Diagnostics{
+			diag.NewWarningDiagnostic(
+				"Policy Drift Detected.",
+				driftedPoliciesMessage,
+			),
 		}
 	}
 
@@ -598,20 +581,16 @@ func (r *iamPolicyResource) compareEachPolicy(newState, oriState *iamPolicyResou
 }
 
 func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Diagnostics {
-	data := make(map[string]string)
-
 	removePolicy := func() error {
-		for _, policies := range state.Policies.Elements() {
-			json.Unmarshal([]byte(policies.String()), &data)
-
+		for _, combinedPolicy := range state.CombinedPolices {
 			detachPolicyFromUserRequest := &iam.DetachUserPolicyInput{
 				PolicyType: byteplus.String("Custom"),
-				PolicyName: byteplus.String(data["policy_name"]),
+				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 				UserName:   byteplus.String(state.UserName.ValueString()),
 			}
 
 			deletePolicyRequest := &iam.DeletePolicyInput{
-				PolicyName: byteplus.String(data["policy_name"]),
+				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 			}
 
 			if _, err := r.client.DetachUserPolicy(detachPolicyFromUserRequest); err != nil {
@@ -643,136 +622,86 @@ func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Dia
 
 type simplePolicy struct {
 	policyName     string
-	policyType     string
 	policyDocument string
 }
 
-func (r *iamPolicyResource) getPolicyDocument(plan *iamPolicyResourceModel) (finalPolicyDocument []string, excludedPolicy []simplePolicy, currentPolicyList []simplePolicy, err error) {
-	policyName := ""
+func (r *iamPolicyResource) combinePolicyDocument(plan *iamPolicyResourceModel) (finalPolicyDocument []string, excludedPolicy []simplePolicy, currentPolicyList []simplePolicy, err error) {
+	attachedPolicies := plan.AttachedPolicies.Elements()
+	policyDetailsState, _, err := r.fetchPolicies(attachedPolicies, false)
+
+	const policyKeywordLen = 30
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	currentLength := 0
 	currentPolicyDocument := ""
 	appendedPolicyDocument := make([]string, 0)
-	var getPolicyResponse *iam.GetPolicyOutput
 
-	for i, policy := range plan.AttachedPolicies.Elements() {
-		policyName = policy.String()
-		getPolicyRequest := &iam.GetPolicyInput{
-			PolicyType: byteplus.String("Custom"),
-			PolicyName: byteplus.String(trimStringQuotes(policyName)),
-		}
+	for _, detail := range policyDetailsState {
+		tempPolicyDocument := detail.PolicyDocument.ValueString()
 
-		getPolicy := func() error {
-			for {
-				var err error
-				getPolicyResponse, err = r.client.GetPolicy(getPolicyRequest)
+		currentPolicyList = append(currentPolicyList, simplePolicy{
+			policyName:     detail.PolicyName.ValueString(),
+			policyDocument: tempPolicyDocument,
+		})
 
-				if err == nil {
-					break
-				}
-
-				if *getPolicyRequest.PolicyType == "System" {
-					return backoff.Permanent(err)
-				}
-
-				if _, ok := err.(bytepluserr.Error); !ok {
-					return err
-				}
-
-				// If returns PolicyType "Custom", but SDK error occurs,
-				// Assumes PolicyType is "System"
-				if *getPolicyRequest.PolicyType == "Custom" {
-					getPolicyRequest.PolicyType = byteplus.String("System")
-					continue
-				}
-			}
-			return nil
-		}
-
-		reconnectBackoff := backoff.NewExponentialBackOff()
-		reconnectBackoff.MaxElapsedTime = 30 * time.Second
-		backoff.Retry(getPolicy, reconnectBackoff)
-
-		if getPolicyResponse != nil && getPolicyResponse.Policy != nil && *getPolicyResponse.Policy.PolicyDocument != "" {
-			tempPolicyDocument, err := url.QueryUnescape(*getPolicyResponse.Policy.PolicyDocument)
-
-			currentPolicyList = append(currentPolicyList, simplePolicy{
-				policyName:     policyName,
-				policyType:     *getPolicyRequest.PolicyType,
+		// If the policy itself have more than 6144 characters, then skip the combine
+		// policy part since splitting the policy "statement" will be hitting the
+		// limitation of "maximum number of attached policies" easily.
+		if len(tempPolicyDocument) > maxLength {
+			excludedPolicy = append(excludedPolicy, simplePolicy{
+				policyName:     detail.PolicyName.ValueString(),
 				policyDocument: tempPolicyDocument,
 			})
+			continue
+		}
 
-			if err != nil {
-				return nil, nil, nil, err
-			}
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(tempPolicyDocument), &data); err != nil {
+			return nil, nil, nil, err
+		}
 
-			skipCombinePolicy := false
-			// If the policy itself have more than 6144 characters, then skip the combine
-			// policy part since splitting the policy "statement" will be hitting the
-			// limitation of "maximum number of attached policies" easily.
-			if len(tempPolicyDocument) > maxLength {
-				excludedPolicy = append(excludedPolicy, simplePolicy{
-					policyName:     policyName,
-					policyDocument: tempPolicyDocument,
-				})
-				skipCombinePolicy = true
-			}
+		statementArr := data["Statement"].([]interface{})
+		statementBytes, err := json.Marshal(statementArr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 
-			if !skipCombinePolicy {
-				var data map[string]interface{}
-				if err := json.Unmarshal([]byte(tempPolicyDocument), &data); err != nil {
-					return nil, nil, nil, err
-				}
+		finalStatement := strings.Trim(string(statementBytes), "[]")
+		currentLength += len(finalStatement)
 
-				statementArr := data["Statement"].([]interface{})
-				statementBytes, err := json.Marshal(statementArr)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-
-				finalStatement := strings.Trim(string(statementBytes), "[]")
-
-				currentLength += len(finalStatement)
-
-				// Before further proceeding the current policy, we need to add a number of 30 to simulate the total length of completed policy to check whether it is already execeeded the max character length of 6144.
-				// Number of 30 indicates the character length of neccessary policy keyword such as "Version" and "Statement" and some JSON symbols ({}, [])
-				if (currentLength + 30) > maxLength {
-					currentPolicyDocument = strings.TrimSuffix(currentPolicyDocument, ",")
-					appendedPolicyDocument = append(appendedPolicyDocument, currentPolicyDocument)
-					currentPolicyDocument = finalStatement + ","
-					currentLength = len(finalStatement)
-				} else {
-					currentPolicyDocument += finalStatement + ","
-				}
-			}
-
-			if i == len(plan.AttachedPolicies.Elements())-1 && (currentLength+30) <= maxLength {
-				currentPolicyDocument = strings.TrimSuffix(currentPolicyDocument, ",")
-				appendedPolicyDocument = append(appendedPolicyDocument, currentPolicyDocument)
-			}
+		// Before further proceeding the current policy, we need to add a number of 30 to simulate the total length of completed policy to check whether it is already execeeded the max character length of 6144.
+		// Number of 30 indicates the character length of neccessary policy keyword such as "Version" and "Statement" and some JSON symbols ({}, [])
+		if (currentLength + 30) > maxLength {
+			currentPolicyDocument = strings.TrimSuffix(currentPolicyDocument, ",")
+			appendedPolicyDocument = append(appendedPolicyDocument, currentPolicyDocument)
+			currentPolicyDocument = finalStatement + ","
+			currentLength = len(finalStatement)
 		} else {
-			return nil, nil, nil, fmt.Errorf("could not find the policy: %v", policyName)
+			currentPolicyDocument += finalStatement + ","
 		}
 	}
 
-	if len(appendedPolicyDocument) > 0 {
-		for _, policy := range appendedPolicyDocument {
-			finalPolicyDocument = append(finalPolicyDocument, fmt.Sprintf(`{"Version":"1","Statement":[%v]}`, policy))
-		}
+	if len(currentPolicyDocument) > 0 {
+		currentPolicyDocument = strings.TrimSuffix(currentPolicyDocument, ",")
+		appendedPolicyDocument = append(appendedPolicyDocument, currentPolicyDocument)
+	}
+
+	for _, policy := range appendedPolicyDocument {
+		finalPolicyDocument = append(finalPolicyDocument, fmt.Sprintf(`{"Version":"1","Statement":[%v]}`, policy))
 	}
 
 	return finalPolicyDocument, excludedPolicy, currentPolicyList, nil
 }
 
 func (r *iamPolicyResource) attachPolicyToUser(state *iamPolicyResourceModel) (err error) {
-	data := make(map[string]string)
-
 	attachPolicyToUser := func() error {
-		for _, policies := range state.Policies.Elements() {
-			json.Unmarshal([]byte(policies.String()), &data)
-
+		for _, combinedPolicy := range state.CombinedPolices {
 			attachPolicyToUserRequest := &iam.AttachUserPolicyInput{
 				PolicyType: byteplus.String("Custom"),
-				PolicyName: byteplus.String(data["policy_name"]),
+				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 				UserName:   byteplus.String(state.UserName.ValueString()),
 			}
 
