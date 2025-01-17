@@ -38,7 +38,6 @@ type iamPolicyResource struct {
 
 type iamPolicyResourceModel struct {
 	AttachedPolicies       types.List      `tfsdk:"attached_policies"`
-	Policies               []*policyDetail `tfsdk:"policies"` // TODO: remove when 'Policies' is no longer used.
 	CombinedPolices        []*policyDetail `tfsdk:"combined_policies"`
 	AttachedPoliciesDetail []*policyDetail `tfsdk:"attached_policies_detail"`
 	UserName               types.String    `tfsdk:"user_name"`
@@ -65,24 +64,6 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "The IAM policies to attach to the user.",
 				Required:    true,
 				ElementType: types.StringType,
-			},
-			// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
-			// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
-			"policies": schema.ListNestedAttribute{
-				Description: "[Deprecated] A list of policies.",
-				Computed:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"policy_name": schema.StringAttribute{
-							Description: "The policy name.",
-							Computed:    true,
-						},
-						"policy_document": schema.StringAttribute{
-							Description: "The policy document of the IAM policy.",
-							Computed:    true,
-						},
-					},
-				},
 			},
 			"combined_policies": schema.ListNestedAttribute{
 				Description: "A list of combined policies that are attached to users.",
@@ -185,26 +166,12 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
-	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
-	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
-		state.CombinedPolices = state.Policies
-		state.Policies = nil
-	}
-
 	// This state will be using to compare with the current state.
 	var oriState *iamPolicyResourceModel
 	getOriStateDiags := req.State.Get(ctx, &oriState)
 	resp.Diagnostics.Append(getOriStateDiags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
-	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
-	if len(oriState.CombinedPolices) == 0 && len(oriState.Policies) != 0 {
-		oriState.CombinedPolices = oriState.Policies
-		state.Policies = nil
 	}
 
 	warnReadPolicyDiags, errReadPolicyDiags := r.readCombinedPolicy(state)
@@ -261,13 +228,6 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
-	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
-	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
-		state.CombinedPolices = state.Policies
-		state.Policies = nil
-	}
-
 	warnReadPolicyDiags, errReadPolicyDiags := r.readAttachedPolicy(plan, false) //to prevent removal of combined policies, if user inputs non-existing attached policies
 	resp.Diagnostics.Append(warnReadPolicyDiags, errReadPolicyDiags)
 	if resp.Diagnostics.HasError() {
@@ -322,13 +282,6 @@ func (r *iamPolicyResource) Delete(ctx context.Context, req resource.DeleteReque
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// NOTE: Avoid using 'policies' in new implementations; use 'CombinedPolicies' instead.
-	// TODO: Remove this data transfer and 'policies' when said variable is no longer used.
-	if len(state.CombinedPolices) == 0 && len(state.Policies) != 0 {
-		state.CombinedPolices = state.Policies
-		state.Policies = nil
 	}
 
 	removePolicyDiags := r.removePolicy(state)
