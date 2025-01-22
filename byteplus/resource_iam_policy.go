@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -391,7 +390,7 @@ func (r *iamPolicyResource) createPolicy(ctx context.Context, plan *iamPolicyRes
 
 	createPolicy := func() error {
 		for i, policy := range combinedPolicyDocuments {
-			policyName := plan.UserName.ValueString() + "-" + strconv.Itoa(i+1)
+			policyName := fmt.Sprintf("%s-%d", plan.UserName.ValueString(), i+1)
 
 			createPolicyRequest := &iam.CreatePolicyInput{
 				PolicyName:     byteplus.String(policyName),
@@ -415,7 +414,7 @@ func (r *iamPolicyResource) createPolicy(ctx context.Context, plan *iamPolicyRes
 	}
 
 	for i, policies := range combinedPolicyDocuments {
-		policyName := plan.UserName.ValueString() + "-" + strconv.Itoa(i+1)
+		policyName := fmt.Sprintf("%s-%d", plan.UserName.ValueString(), i+1)
 
 		combinedPoliciesDetail = append(combinedPoliciesDetail, &policyDetail{
 			PolicyName:     types.StringValue(policyName),
