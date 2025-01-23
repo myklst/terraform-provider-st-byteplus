@@ -81,7 +81,7 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 							Computed:    true,
 						},
 						"policy_document": schema.StringAttribute{
-							Description: "The policy document of the RAM policy.",
+							Description: "The policy document of the IAM policy.",
 							Computed:    true,
 						},
 					},
@@ -97,7 +97,7 @@ func (r *iamPolicyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 							Computed:    true,
 						},
 						"policy_document": schema.StringAttribute{
-							Description: "The policy document of the RAM policy.",
+							Description: "The policy document of the IAM policy.",
 							Computed:    true,
 						},
 					},
@@ -574,8 +574,8 @@ func (r *iamPolicyResource) readAttachedPolicy(state *iamPolicyResourceModel) (n
 // fetchPolicies retrieve policy document through BytePlus SDK with backoff retry.
 //
 // Parameters:
-//   - policiesName: List of RAM policies name.
-//   - policyTypes: List of RAM policy types to retrieve.
+//   - policiesName: List of IAM policies name.
+//   - policyTypes: List of IAM policy types to retrieve.
 //
 // Returns:
 //   - policiesDetail: List of retrieved policies detail.
@@ -587,10 +587,10 @@ func (r *iamPolicyResource) fetchPolicies(policiesName []string, policyTypes []s
 		var err error
 
 		getPolicy := func() error {
-			for _, ramPolicyType := range policyTypes {
+			for _, iamPolicyType := range policyTypes {
 				getPolicyRequest := &iam.GetPolicyInput{
 					PolicyName: byteplus.String(strings.Trim(attachedPolicy, "\"")),
-					PolicyType: byteplus.String(ramPolicyType),
+					PolicyType: byteplus.String(iamPolicyType),
 				}
 				getPolicyResponse, err = r.client.GetPolicy(getPolicyRequest)
 				if err != nil {
@@ -614,7 +614,7 @@ func (r *iamPolicyResource) fetchPolicies(policiesName []string, policyTypes []s
 		if err != nil {
 			switch err.(bytepluserr.Error).Code() {
 			// The error handling here is different from the one in backoff retry
-			// function. The error handling here represent the RAM policy is not
+			// function. The error handling here represent the IAM policy is not
 			// found in all policy types.
 			case "PolicyNotExist":
 				notExistError = append(notExistError, err)
@@ -633,7 +633,7 @@ func (r *iamPolicyResource) fetchPolicies(policiesName []string, policyTypes []s
 }
 
 // checkPoliciesDrift compare the recorded AttachedPoliciesDetail documents with
-// the latest RAM policy documents on BytePlus, and trigger Update() if policy
+// the latest IAM policy documents on BytePlus, and trigger Update() if policy
 // drift is detected.
 //
 // Parameters:
@@ -713,7 +713,7 @@ func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Dia
 	return nil
 }
 
-// attachPolicyToUser attach the RAM policy to user through AliCloud SDK.
+// attachPolicyToUser attach the IAM policy to user through BytePlus SDK.
 //
 // Parameters:
 //   - state: The recorded state configurations.
