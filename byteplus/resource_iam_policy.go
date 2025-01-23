@@ -442,8 +442,12 @@ func (r *iamPolicyResource) createPolicy(ctx context.Context, plan *iamPolicyRes
 //   - errList: List of errors, return nil if no errors.
 func (r *iamPolicyResource) combinePolicyDocument(attachedPolicies []string) (combinedPolicyDocument []string, excludedPolicies []*policyDetail, attachedPoliciesDetail []*policyDetail, errList []error) {
 	attachedPoliciesDetail, notExistErrList, unexpectedErrList := r.fetchPolicies(attachedPolicies, []string{"Custom", "System"})
+
+	errList = append(errList, notExistErrList...)
+	errList = append(errList, unexpectedErrList...)
+
 	if len(errList) != 0 {
-		return nil, nil, nil, append(unexpectedErrList, notExistErrList...)
+		return nil, nil, nil, errList
 	}
 
 	currentLength := 0
@@ -456,7 +460,7 @@ func (r *iamPolicyResource) combinePolicyDocument(attachedPolicies []string) (co
 		// policy part since splitting the policy "statement" will be hitting the
 		// limitation of "maximum number of attached policies" easily.
 		if len(tempPolicyDocument) > policyMaxLength {
-			excludedPolicies = append(excludedPolicies,  &policyDetail{
+			excludedPolicies = append(excludedPolicies, &policyDetail{
 				PolicyName:     attachedPolicy.PolicyName,
 				PolicyDocument: types.StringValue(tempPolicyDocument),
 			})
@@ -547,7 +551,7 @@ func (r *iamPolicyResource) readCombinedPolicy(state *iamPolicyResourceModel) (n
 func (r *iamPolicyResource) readAttachedPolicy(state *iamPolicyResourceModel) (notExistErrs, unexpectedErrs []error) {
 	var policiesName []string
 	for _, policyName := range state.AttachedPolicies.Elements() {
-		policiesName = append(policiesName, policyName.String())
+		policiesName = append(policiesName, strings.Trim(policyName.String(), "\""))
 	}
 
 	policyDetails, notExistErrs, unexpectedErrs := r.fetchPolicies(policiesName, []string{"Custom", "System"})
