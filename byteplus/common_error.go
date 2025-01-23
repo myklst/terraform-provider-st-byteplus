@@ -19,6 +19,9 @@ const (
 	ERR_CODE_FAIL_TO_CONNECT              = "FailToConnect"
 	ERR_CODE_INTERNAL_SERVICE_TIMEOUT     = "InternalServiceTimeout"
 	ERR_CODE_SERVICE_UNAVAILABLE_TEMP     = "ServiceUnavailableTemp"
+
+	ERR_SERVICE_FAILURE                   = "ServiceFailure"
+	ERR_SERVICE_ACCESS_KEY_LIMIT_EXCEEDED = "ServiceAccessKeyLimitExceeded"
 )
 
 func isPermanentCommonError(errCode string) bool {
@@ -43,4 +46,16 @@ func isPermanentCommonError(errCode string) bool {
 	default:
 		return false
 	}
+}
+
+func isAbleToRetry(errCode string) bool {
+	switch errCode {
+	case
+		ERR_SERVICE_FAILURE,
+		ERR_SERVICE_ACCESS_KEY_LIMIT_EXCEEDED:
+		return true
+	default:
+		return false
+	}
+	// return false
 }

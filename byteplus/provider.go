@@ -4,6 +4,11 @@ import (
 	"context"
 	"os"
 
+
+	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus"
+	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/credentials"
+	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/session"
+	"github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
 	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -17,6 +22,7 @@ import (
 // Wrapper of Byteplus client
 type byteplusClients struct {
 	cdnClient *byteplusCdnClient.CDN
+	iamClient *iam.IAM
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -183,9 +189,29 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 	cdnClient := byteplusCdnClient.NewInstance()
 	cdnClient.Client.SetCredential(cdnClientConfig)
 
+	//BytePlus IAM Client
+	clientCredentialsConfigNew := byteplus.NewConfig().
+		WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
+		WithRegion(region)
+
+	sess, err := session.NewSession(clientCredentialsConfigNew)
+
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Create AliCloud IAM API Client",
+			"An unexpected error occurred when creating the AliCloud IAM API client. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"BytePlus IAM Client Error: "+err.Error(),
+		)
+		return
+	}
+
+	iamClient := iam.New(sess)
+
 	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{
 		cdnClient: cdnClient,
+		iamClient: iamClient,
 	}
 
 	// Make the Byteplus client available during DataSource and Resource type
@@ -201,5 +227,7 @@ func (p *byteplusProvider) DataSources(_ context.Context) []func() datasource.Da
 }
 
 func (p *byteplusProvider) Resources(_ context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewIamPolicyResource,
+	}
 }
