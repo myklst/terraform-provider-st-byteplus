@@ -30,7 +30,7 @@ Provides a IAM Policy resource that manages policy content exceeding character l
 
 Read-Only:
 
-- `policy_document` (String) The policy document of the RAM policy.
+- `policy_document` (String) The policy document of the IAM policy.
 - `policy_name` (String) The policy name.
 
 
@@ -39,5 +39,5 @@ Read-Only:
 
 Read-Only:
 
-- `policy_document` (String) The policy document of the RAM policy.
+- `policy_document` (String) The policy document of the IAM policy.
 - `policy_name` (String) The policy name.
