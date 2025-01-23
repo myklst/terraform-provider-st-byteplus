@@ -31,6 +31,6 @@ provider "st-byteplus" {
 
 ### Optional
 
-- `access_key` (String) Access Key for Byteplus API. May also be provided via BYTEPLUS_ACCESS_KEY environment variable.
 - `region` (String) Region for Byteplus API. May also be provided via BYTEPLUS_REGION environment variable.
+- `access_key` (String) Access Key for Byteplus API. May also be provided via BYTEPLUS_ACCESS_KEY environment variable.
 - `secret_key` (String, Sensitive) Secret key for Byteplus API. May also be provided via BYTEPLUS_SECRET_KEY environment variable.

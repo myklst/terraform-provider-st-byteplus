@@ -9,7 +9,7 @@ import (
 
 	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus"
 	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/bytepluserr"
-	"github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
+	byteplusIamClient "github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
 	"github.com/cenkalti/backoff"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -35,7 +35,7 @@ func NewIamPolicyResource() resource.Resource {
 }
 
 type iamPolicyResource struct {
-	client *iam.IAM
+	client *byteplusIamClient.IAM
 }
 
 type iamPolicyResourceModel struct {
@@ -392,7 +392,7 @@ func (r *iamPolicyResource) createPolicy(ctx context.Context, plan *iamPolicyRes
 		for i, policy := range combinedPolicyDocuments {
 			policyName := fmt.Sprintf("%s-%d", plan.UserName.ValueString(), i+1)
 
-			createPolicyRequest := &iam.CreatePolicyInput{
+			createPolicyRequest := &byteplusIamClient.CreatePolicyInput{
 				PolicyName:     byteplus.String(policyName),
 				PolicyDocument: byteplus.String(policy),
 			}
@@ -583,12 +583,12 @@ func (r *iamPolicyResource) readAttachedPolicy(state *iamPolicyResourceModel) (n
 //   - unexpectedError: List of unexpected errors to be used as normal error messages, return empty list if no errors.
 func (r *iamPolicyResource) fetchPolicies(policiesName []string, policyTypes []string) (policiesDetail []*policyDetail, notExistError, unexpectedError []error) {
 	for _, attachedPolicy := range policiesName {
-		getPolicyResponse := &iam.GetPolicyOutput{}
+		getPolicyResponse := &byteplusIamClient.GetPolicyOutput{}
 		var err error
 
 		getPolicy := func() error {
 			for _, iamPolicyType := range policyTypes {
-				getPolicyRequest := &iam.GetPolicyInput{
+				getPolicyRequest := &byteplusIamClient.GetPolicyInput{
 					PolicyName: byteplus.String(strings.Trim(attachedPolicy, "\"")),
 					PolicyType: byteplus.String(iamPolicyType),
 				}
@@ -676,13 +676,13 @@ func (r *iamPolicyResource) checkPoliciesDrift(newState, oriState *iamPolicyReso
 func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Diagnostics {
 	removePolicy := func() error {
 		for _, combinedPolicy := range state.CombinedPolicesDetail {
-			detachPolicyFromUserRequest := &iam.DetachUserPolicyInput{
+			detachPolicyFromUserRequest := &byteplusIamClient.DetachUserPolicyInput{
 				PolicyType: byteplus.String("Custom"),
 				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 				UserName:   byteplus.String(state.UserName.ValueString()),
 			}
 
-			deletePolicyRequest := &iam.DeletePolicyInput{
+			deletePolicyRequest := &byteplusIamClient.DeletePolicyInput{
 				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 			}
 
@@ -723,7 +723,7 @@ func (r *iamPolicyResource) removePolicy(state *iamPolicyResourceModel) diag.Dia
 func (r *iamPolicyResource) attachPolicyToUser(state *iamPolicyResourceModel) (err error) {
 	attachPolicyToUser := func() error {
 		for _, combinedPolicy := range state.CombinedPolicesDetail {
-			attachPolicyToUserRequest := &iam.AttachUserPolicyInput{
+			attachPolicyToUserRequest := &byteplusIamClient.AttachUserPolicyInput{
 				PolicyType: byteplus.String("Custom"),
 				PolicyName: byteplus.String(combinedPolicy.PolicyName.ValueString()),
 				UserName:   byteplus.String(state.UserName.ValueString()),
