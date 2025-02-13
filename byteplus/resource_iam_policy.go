@@ -132,6 +132,9 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		errors,
 		"",
 	)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	state := &iamPolicyResourceModel{}
 	state.UserName = plan.UserName
@@ -147,6 +150,9 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		[]error{err},
 		"",
 	)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Create policy are not expected to have not found warning.
 	readCombinedPolicyNotExistErr, readCombinedPolicyErr := r.readCombinedPolicy(state)
@@ -164,7 +170,6 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		readCombinedPolicyErr,
 		"",
 	)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -205,7 +210,7 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		"error",
 		fmt.Sprintf("[API ERROR] Failed to Read Combined Policies for %v: Unexpected Error!", state.UserName),
 		readCombinedPolicyErr,
-		"",
+		"This resource will be updated in the next terraform apply.",
 	)
 
 	// Set state so that Terraform will trigger update if there are changes in state.
@@ -251,7 +256,7 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		"warning",
 		fmt.Sprintf("[API WARNING] Policy Drift Detected for %v.", state.UserName),
 		[]error{compareAttachedPoliciesErr},
-		"",
+		"This resource will be updated in the next terraform apply.",
 	)
 
 	setStateDiags = resp.State.Set(ctx, &state)
@@ -292,13 +297,19 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		readAttachedPolicyErr,
 		"",
 	)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	removePolicyDiags := r.removePolicy(state)
 	resp.Diagnostics.Append(removePolicyDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	state.CombinedPolicesDetail = nil
+	setStateDiags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(setStateDiags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -311,6 +322,9 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		errors,
 		"",
 	)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	state.UserName = plan.UserName
 	state.AttachedPolicies = plan.AttachedPolicies
@@ -325,6 +339,9 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		[]error{err},
 		"",
 	)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Create policy are not expected to have not found warning.
 	readCombinedPolicyNotExistErr, readCombinedPolicyErr := r.readCombinedPolicy(state)
@@ -342,12 +359,11 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		readCombinedPolicyErr,
 		"",
 	)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	setStateDiags := resp.State.Set(ctx, &state)
+	setStateDiags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(setStateDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -473,8 +489,7 @@ func (r *iamPolicyResource) combinePolicyDocument(attachedPolicies []string) (co
 			return nil, nil, nil, errList
 		}
 
-		statementArr := data["Statement"].([]interface{})
-		statementBytes, err := json.Marshal(statementArr)
+		statementBytes, err := json.Marshal(data["Statement"])
 		if err != nil {
 			errList = append(errList, err)
 			return nil, nil, nil, errList
