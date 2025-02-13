@@ -210,7 +210,7 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		"error",
 		fmt.Sprintf("[API ERROR] Failed to Read Combined Policies for %v: Unexpected Error!", state.UserName),
 		readCombinedPolicyErr,
-		"This resource will be updated in the next terraform apply.",
+		"",
 	)
 
 	// Set state so that Terraform will trigger update if there are changes in state.
