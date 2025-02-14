@@ -8,7 +8,7 @@ import (
 	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus"
 	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/credentials"
 	"github.com/byteplus-sdk/byteplus-go-sdk-v2/byteplus/session"
-	"github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
+	byteplusIamClient "github.com/byteplus-sdk/byteplus-go-sdk-v2/service/iam"
 	byteplusBaseClient "github.com/byteplus-sdk/byteplus-sdk-golang/base"
 	byteplusCdnClient "github.com/byteplus-sdk/byteplus-sdk-golang/service/cdn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -22,7 +22,7 @@ import (
 // Wrapper of Byteplus client
 type byteplusClients struct {
 	cdnClient *byteplusCdnClient.CDN
-	iamClient *iam.IAM
+	iamClient *byteplusIamClient.IAM
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -206,7 +206,7 @@ func (p *byteplusProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	iamClient := iam.New(sess)
+	iamClient := byteplusIamClient.New(sess)
 
 	// Byteplus clients wrapper
 	byteplusClients := byteplusClients{

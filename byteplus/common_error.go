@@ -19,7 +19,6 @@ const (
 	ERR_CODE_FAIL_TO_CONNECT              = "FailToConnect"
 	ERR_CODE_INTERNAL_SERVICE_TIMEOUT     = "InternalServiceTimeout"
 	ERR_CODE_SERVICE_UNAVAILABLE_TEMP     = "ServiceUnavailableTemp"
-
 	ERR_SERVICE_FAILURE                   = "ServiceFailure"
 	ERR_SERVICE_ACCESS_KEY_LIMIT_EXCEEDED = "ServiceAccessKeyLimitExceeded"
 )
