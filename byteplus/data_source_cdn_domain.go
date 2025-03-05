@@ -134,7 +134,7 @@ func (d *cdnDomainDataSource) Read(ctx context.Context, req datasource.ReadReque
 
 	// Create the request
 	ListCdnDomainsRequest := &byteplusCdnClient.ListCdnDomainsRequest{
-		Domain:   &domainName,
+		Domain:   byteplusCdnClient.GetStrPtr(fmt.Sprintf("^%s$", domainName)),
 		PageNum:  &pageNum,
 		PageSize: &pageSize,
 	}
