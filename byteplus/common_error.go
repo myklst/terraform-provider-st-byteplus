@@ -21,6 +21,7 @@ const (
 	ERR_CODE_SERVICE_UNAVAILABLE_TEMP     = "ServiceUnavailableTemp"
 	ERR_SERVICE_FAILURE                   = "ServiceFailure"
 	ERR_SERVICE_ACCESS_KEY_LIMIT_EXCEEDED = "ServiceAccessKeyLimitExceeded"
+	ERR_ACCOUNT_FLOW_LIMIT_EXCEED         = "AccountFlowLimitExceeded"
 )
 
 func isPermanentCommonError(errCode string) bool {
@@ -51,6 +52,7 @@ func isAbleToRetry(errCode string) bool {
 	switch errCode {
 	case
 		ERR_SERVICE_FAILURE,
+		ERR_ACCOUNT_FLOW_LIMIT_EXCEED,
 		ERR_SERVICE_ACCESS_KEY_LIMIT_EXCEEDED:
 		return true
 	default:
